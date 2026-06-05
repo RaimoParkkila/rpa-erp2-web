@@ -17,7 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import InvoicesJoined from "./pages/InvoicesJoined";
 import ProductsJoined from "./pages/ProductsJoined";
 import Shop from "./pages/Shop";
-import InvoiceDetail from "./pages/InvoiceDetail";
+//import InvoiceDetail from "./pages/InvoiceDetail";
 import ProductDetail from "./pages/ProductDetail";
 import Login from "./pages/Login";
 import WholesaleDetail from "./pages/WholesaleDetail";
@@ -25,6 +25,14 @@ import AdminPanel from "./pages/AdminPanel";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
+import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
+//mport MainLayout from "./layouts/MainLayout";
+import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
+
+
+
+//uudet importit
+
 
 function Layout() {
   const location = useLocation();
@@ -79,12 +87,17 @@ export default function App() {
         {/* APP LAYOUT */}
         <Route element={<Layout />}>
 
-          {/* USER PROTECTED ROUTES */}
+          {/* PROTECTED AREA */}
           <Route element={<ProtectedRoute />}>
+
+            {/* USER ROUTES */}
             <Route path="/" element={<Dashboard />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/products" element={<Products />} />
-            <Route path="/invoices" element={<Invoices />} />
+
+            {/* Invoices (uusi moduuli) */}
+            <Route path="/invoices" element={<InvoicesPage />} />
+
             <Route path="/storage" element={<Storage />} />
             <Route path="/wholesale" element={<Wholesale />} />
             <Route path="/invoices-joined" element={<InvoicesJoined />} />
@@ -95,6 +108,7 @@ export default function App() {
             <Route path="/shop/:id" element={<ProductDetail />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/wholesale/:id" element={<WholesaleDetail />} />
+
           </Route>
 
           {/* ADMIN ROUTES */}
