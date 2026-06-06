@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 import { useNavigate } from "react-router-dom";
+import { formatDateES } from "../utils/date";
 
 type Wholesale = {
   id: number;
@@ -95,7 +96,13 @@ export default function Wholesale() {
                 <td style={td}>{w.city}</td>
                 <td style={td}>{w.country}</td>
                 <td style={td}>{w.zipcode}</td>
-                <td style={td}>{w.activated_date}</td>
+
+                <td style={td}>
+                  {w.activated_date
+                    ? formatDateES(w.activated_date)
+                    : "-"}
+                </td>
+
                 <td style={td}>{w.email}</td>
                 <td style={td}>{w.phone1}</td>
               </tr>

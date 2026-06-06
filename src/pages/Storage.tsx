@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
+import { useNavigate } from "react-router-dom";
+import { formatDateES } from "../utils/date";
 
 type StorageBranch = {
   id: number;
@@ -16,6 +18,7 @@ type StorageBranch = {
 export default function Storage() {
   const [branches, setBranches] = useState<StorageBranch[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchBranches();
@@ -44,10 +47,21 @@ export default function Storage() {
     borderRadius: 10,
   };
 
+  const th: React.CSSProperties = {
+    textAlign: "left",
+    padding: 10,
+    fontSize: 12,
+    opacity: 0.7,
+  };
+
+  const td: React.CSSProperties = {
+    padding: 10,
+    fontSize: 13,
+  };
+
   return (
-    <div>
-
-
+    <div style={{ color: "white" }}>
+      {/* HEADER */}
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0 }}>Storage</h1>
 
@@ -116,15 +130,29 @@ export default function Storage() {
               {branches.map((b) => (
                 <tr
                   key={b.id}
+                  onClick={() => navigate(`/storage/${b.id}`)}
                   style={{
                     borderTop: "1px solid #222",
+                    cursor: "pointer",
                   }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "#1a1a1a")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "transparent")
+                  }
                 >
                   <td style={td}>{b.branchofficename}</td>
                   <td style={td}>{b.city}</td>
                   <td style={td}>{b.country}</td>
                   <td style={td}>{b.zipcode}</td>
-                  <td style={td}>{b.activated_date}</td>
+
+                  <td style={td}>
+                    {b.activated_date
+                      ? formatDateES(b.activated_date)
+                      : "-"}
+                  </td>
+
                   <td style={td}>{b.email}</td>
                   <td style={td}>{b.phone1}</td>
                 </tr>
@@ -136,15 +164,3 @@ export default function Storage() {
     </div>
   );
 }
-
-const th: React.CSSProperties = {
-  textAlign: "left",
-  padding: 10,
-  fontSize: 12,
-  opacity: 0.7,
-};
-
-const td: React.CSSProperties = {
-  padding: 10,
-  fontSize: 13,
-};

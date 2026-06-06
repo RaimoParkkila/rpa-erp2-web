@@ -2,26 +2,24 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 
-type Wholesale = {
+type StorageBranch = {
   id: number;
-  companyname: string;
-  zip_code: string;
+  zipcode: string;
+  activated_date: string;
+  branchofficename: string;
   city: string;
   country: string;
   email: string;
   phone1: string;
   streetaddress: string;
-  contactperson: string;
-  www_page: string;
-  wholesale_id: number;
 };
 
-export default function WholesaleDetail() {
+export default function StorageDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [item, setItem] = useState<Wholesale | null>(null);
-  const [form, setForm] = useState<Wholesale | null>(null);
+  const [item, setItem] = useState<StorageBranch | null>(null);
+  const [form, setForm] = useState<StorageBranch | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
 
@@ -35,7 +33,7 @@ export default function WholesaleDetail() {
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("rpa_wholesale")
+      .from("rpa_storagebranchoffice")
       .select("*")
       .eq("id", Number(id))
       .single();
@@ -55,17 +53,16 @@ export default function WholesaleDetail() {
     if (!form || !id) return;
 
     const { error } = await supabase
-      .from("rpa_wholesale")
+      .from("rpa_storagebranchoffice")
       .update({
-        companyname: form.companyname,
+        branchofficename: form.branchofficename,
         city: form.city,
         country: form.country,
-        zip_code: form.zip_code,
+        zipcode: form.zipcode,
         email: form.email,
         phone1: form.phone1,
         streetaddress: form.streetaddress,
-        contactperson: form.contactperson,
-        www_page: form.www_page,
+        activated_date: form.activated_date,
       })
       .eq("id", Number(id));
 
@@ -81,11 +78,11 @@ export default function WholesaleDetail() {
   async function remove() {
     if (!id) return;
 
-    const ok = confirm("Delete this wholesale?");
+    const ok = confirm("Delete this storage branch?");
     if (!ok) return;
 
     const { error } = await supabase
-      .from("rpa_wholesale")
+      .from("rpa_storagebranchoffice")
       .delete()
       .eq("id", Number(id));
 
@@ -94,7 +91,7 @@ export default function WholesaleDetail() {
       return;
     }
 
-    navigate("/wholesale");
+    navigate("/storage");
   }
 
   if (loading) return <p style={{ color: "white" }}>Loading...</p>;
@@ -104,19 +101,18 @@ export default function WholesaleDetail() {
     <div style={{ color: "white", padding: 20 }}>
       <button onClick={() => navigate(-1)}>← Back</button>
 
-      <h1 style={{ marginTop: 10 }}>{item.companyname}</h1>
+      <h1 style={{ marginTop: 10 }}>{item.branchofficename}</h1>
 
       {!editMode ? (
         <>
           <div style={{ marginTop: 20, lineHeight: 1.8 }}>
             <div><b>City:</b> {item.city}</div>
             <div><b>Country:</b> {item.country}</div>
-            <div><b>ZIP:</b> {item.zip_code}</div>
+            <div><b>ZIP:</b> {item.zipcode}</div>
             <div><b>Email:</b> {item.email}</div>
             <div><b>Phone:</b> {item.phone1}</div>
-            <div><b>Contact:</b> {item.contactperson}</div>
-            <div><b>Website:</b> {item.www_page}</div>
             <div><b>Address:</b> {item.streetaddress}</div>
+            <div><b>Activated:</b> {item.activated_date}</div>
           </div>
 
           <div style={{ marginTop: 20 }}>
@@ -134,11 +130,11 @@ export default function WholesaleDetail() {
         <>
           <div style={{ display: "grid", gap: 8, marginTop: 20 }}>
             <input
-              value={form.companyname}
+              value={form.branchofficename}
               onChange={(e) =>
-                setForm({ ...form, companyname: e.target.value })
+                setForm({ ...form, branchofficename: e.target.value })
               }
-              placeholder="Company name"
+              placeholder="Branch name"
             />
 
             <input
@@ -158,9 +154,9 @@ export default function WholesaleDetail() {
             />
 
             <input
-              value={form.zip_code}
+              value={form.zipcode}
               onChange={(e) =>
-                setForm({ ...form, zip_code: e.target.value })
+                setForm({ ...form, zipcode: e.target.value })
               }
               placeholder="ZIP"
             />
@@ -179,22 +175,6 @@ export default function WholesaleDetail() {
                 setForm({ ...form, phone1: e.target.value })
               }
               placeholder="Phone"
-            />
-
-            <input
-              value={form.contactperson}
-              onChange={(e) =>
-                setForm({ ...form, contactperson: e.target.value })
-              }
-              placeholder="Contact person"
-            />
-
-            <input
-              value={form.www_page}
-              onChange={(e) =>
-                setForm({ ...form, www_page: e.target.value })
-              }
-              placeholder="Website"
             />
 
             <input

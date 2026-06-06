@@ -28,6 +28,8 @@ import AdminRoute from "./routes/AdminRoute";
 import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
 //mport MainLayout from "./layouts/MainLayout";
 import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
+import CustomerDetail from "./pages/CustomerDetail";
+import StorageDetail from "./pages/StorageDetail";
 
 
 
@@ -92,22 +94,34 @@ export default function App() {
 
             {/* USER ROUTES */}
             <Route path="/" element={<Dashboard />} />
+
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:id" element={<CustomerDetail />} />
+
             <Route path="/products" element={<Products />} />
 
-            {/* Invoices (uusi moduuli) */}
+            {/* Invoices */}
             <Route path="/invoices" element={<InvoicesPage />} />
+            <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
+            {/* STORAGE */}
             <Route path="/storage" element={<Storage />} />
+            <Route path="/storage/:id" element={<StorageDetail />} />
+
+            {/* WHOLESALE */}
             <Route path="/wholesale" element={<Wholesale />} />
+            <Route path="/wholesale/:id" element={<WholesaleDetail />} />
+
+            {/* JOINED / EXTRA */}
             <Route path="/invoices-joined" element={<InvoicesJoined />} />
             <Route path="/products-joined" element={<ProductsJoined />} />
-            <Route path="/shop" element={<Shop />} />
 
-            <Route path="/invoices/:id" element={<InvoiceDetail />} />
+            {/* SHOP */}
+            <Route path="/shop" element={<Shop />} />
             <Route path="/shop/:id" element={<ProductDetail />} />
+
+            {/* PRODUCTS DETAIL */}
             <Route path="/products/:id" element={<ProductDetail />} />
-            <Route path="/wholesale/:id" element={<WholesaleDetail />} />
 
           </Route>
 
