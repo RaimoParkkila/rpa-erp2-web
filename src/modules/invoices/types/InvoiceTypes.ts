@@ -1,10 +1,10 @@
-export interface Invoice {
+export type Invoice = {
   id: number;
-  customer: string;
+  rpa_customer_id: number;
+  status: "DRAFT" | "SENT" | "PAID" | "OVERDUE";
   date: string;
-  total: number;
-  status: "Paid" | "Pending" | "Overdue";
-}
+  total?: number;
+};
 
 export interface InvoiceForm {
   id?: number;

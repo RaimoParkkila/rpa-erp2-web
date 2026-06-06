@@ -10,11 +10,11 @@ import "./App.css";
 
 import Customers from "./pages/Customers";
 import Products from "./pages/Products";
-import Invoices from "./pages/Invoices";
+import Invoices from "./pages/Invoices_poista";
 import Storage from "./pages/Storage";
 import Wholesale from "./pages/Wholesale";
 import Dashboard from "./pages/Dashboard";
-import InvoicesJoined from "./pages/InvoicesJoined";
+import InvoicesJoined from "./pages/InvoicesJoined_poista";
 import ProductsJoined from "./pages/ProductsJoined";
 import Shop from "./pages/Shop";
 //import InvoiceDetail from "./pages/InvoiceDetail";
@@ -25,11 +25,14 @@ import AdminPanel from "./pages/AdminPanel";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
-import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
+
 //mport MainLayout from "./layouts/MainLayout";
-import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
+
 import CustomerDetail from "./pages/CustomerDetail";
 import StorageDetail from "./pages/StorageDetail";
+
+import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
+import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
 
 
 

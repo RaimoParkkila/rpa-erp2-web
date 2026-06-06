@@ -3,7 +3,6 @@ import type { InvoiceForm } from "../types/InvoiceTypes";
 import type { Customer } from "../types/CustomerTypes";
 import { supabase } from "../../../services/supabase";
 
-
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -19,12 +18,17 @@ export default function InvoiceModal({
 }: Props) {
   const [visible, setVisible] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerId, setCustomerId] = useState<number | "">("");
+  const [customerId, setCustomerId] = useState<string>("");
   const [date, setDate] = useState("");
   const [status, setStatus] =
     useState<"Paid" | "Pending" | "Overdue">("Pending");
 
+  // DEBUG LOG
+  useEffect(() => {
+    console.log("INVOICE MODAL initialData:", initialData);
+  }, [initialData]);
 
+  // FETCH CUSTOMERS
   useEffect(() => {
     const fetchCustomers = async () => {
       const { data, error } = await supabase
@@ -34,16 +38,24 @@ export default function InvoiceModal({
 
       if (!error && data) {
         setCustomers(data);
+      } else {
+        console.error(error);
       }
     };
 
     fetchCustomers();
   }, []);
 
-  // Sync edit/create data
+
+
+  // SYNC EDIT DATA
   useEffect(() => {
     if (initialData) {
-      setCustomerId(initialData.rpa_customer_id ?? "");
+      setCustomerId(
+        initialData.rpa_customer_id
+          ? String(initialData.rpa_customer_id)
+          : ""
+      );
       setDate(initialData.date ?? "");
       setStatus(initialData.status ?? "Pending");
     } else {
@@ -53,7 +65,7 @@ export default function InvoiceModal({
     }
   }, [initialData]);
 
-  // open/close animation control
+  // OPEN/CLOSE
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
@@ -65,7 +77,7 @@ export default function InvoiceModal({
     }
   }, [isOpen]);
 
-  // ESC close
+  // ESC
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -97,8 +109,6 @@ export default function InvoiceModal({
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        opacity: isOpen ? 1 : 0,
-        transition: "opacity 180ms ease",
       }}
     >
       <div
@@ -108,21 +118,44 @@ export default function InvoiceModal({
           background: "white",
           padding: 20,
           borderRadius: 10,
-          transform: isOpen ? "scale(1)" : "scale(0.95)",
-          transition: "transform 180ms ease",
         }}
       >
-        <h3>{initialData ? "Edit Invoice" : "Add Invoice"}</h3>
+        {initialData ? "Edit Invoice" : "Add Invoice"}
 
-        {/* CUSTOMER ID (later dropdown voidaan tehdä) */}
+        {/* 🔥 DEBUG PANEL */}
+        <pre
+          style={{
+            fontSize: 11,
+            background: "#111",
+            color: "#0f0",
+            padding: 10,
+            marginTop: 10,
+            borderRadius: 6,
+            maxHeight: 150,
+            overflow: "auto",
+          }}
+        >
+          {JSON.stringify(
+            {
+              isOpen,
+              visible,
+              customerId,
+              initialData,
+            },
+            null,
+            2
+          )}
+        </pre>
+
+        {/* CUSTOMER DROPDOWN */}
         <select
           value={customerId}
-          onChange={(e) => setCustomerId(Number(e.target.value))}
+          onChange={(e) => setCustomerId(e.target.value)}
         >
           <option value="">Select customer</option>
 
           {customers.map((c) => (
-            <option key={c.id} value={c.id}>
+            <option key={c.id} value={String(c.id)}>
               {c.firstname}
             </option>
           ))}

@@ -2,15 +2,13 @@ import React, { useState, useEffect } from "react";
 import InvoiceTable from "../components/InvoiceTable";
 import InvoiceModal from "../components/InvoiceModal";
 import { InvoiceService } from "../services/InvoiceService";
+import { InvoiceDetailService } from "../services/InvoiceDetailService";
 import type { Invoice } from "../types/InvoiceTypes";
-import { useSearchParams } from "react-router-dom";
-import { formatDateES } from "../../../utils/date";
-import { useNavigate } from "react-router-dom";
-
-
+import { useSearchParams, useNavigate } from "react-router-dom";
 
 export default function InvoicesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const getParam = (key: string, fallback: string) =>
     searchParams.get(key) || fallback;
@@ -26,7 +24,6 @@ export default function InvoicesPage() {
   const [sortKey, setSortKey] = useState(
     getParam("sort", "id") as keyof Invoice
   );
-  const navigate = useNavigate();
 
   const [sortAsc, setSortAsc] = useState(
     getParam("order", "asc") === "asc"
@@ -36,17 +33,30 @@ export default function InvoicesPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] =
-    useState<Invoice | null>(null);
+    useState<any | null>(null);
 
   const pageSize = 10;
 
-  // reload helper
+  const mapStatus = (status: string) => {
+    switch (status) {
+      case "DRAFT":
+        return "Pending";
+      case "SENT":
+        return "Pending";
+      case "PAID":
+        return "Paid";
+      case "OVERDUE":
+        return "Overdue";
+      default:
+        return "Pending";
+    }
+  };
+
   const reloadInvoices = async () => {
     const data = await InvoiceService.getAll();
     setInvoices(Array.isArray(data) ? data : []);
   };
 
-  // LOAD DATA
   useEffect(() => {
     setLoading(true);
     InvoiceService.getAll()
@@ -56,7 +66,6 @@ export default function InvoicesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // URL SYNC
   useEffect(() => {
     setSearchParams({
       search,
@@ -72,17 +81,21 @@ export default function InvoicesPage() {
     await InvoiceService.remove(id);
   };
 
-  const handleEdit = (invoice: Invoice) => {
-    setEditingInvoice(invoice);
-    setModalOpen(true);
-  };
+const handleEdit = async (invoice: Invoice) => {
+  const full = await InvoiceDetailService.getById(invoice.id);
 
+  console.log("FULL INVOICE FROM SERVICE:", full);
+
+  if (!full) return;
+
+  setEditingInvoice(full);
+  setModalOpen(true);
+};
   const handleSortChange = (key: keyof Invoice, asc: boolean) => {
     setSortKey(key);
     setSortAsc(asc);
   };
 
-  // FILTER + SORT
   const processedInvoices = invoices
     .filter((inv) =>
       (inv.customer ?? "")
@@ -137,9 +150,7 @@ export default function InvoicesPage() {
 
         <select
           value={statusFilter}
-          onChange={(e) =>
-            setStatusFilter(e.target.value as any)
-          }
+          onChange={(e) => setStatusFilter(e.target.value as any)}
         >
           <option value="All">All</option>
           <option value="Paid">Paid</option>
@@ -160,21 +171,14 @@ export default function InvoicesPage() {
 
       {/* PAGINATION */}
       <div style={{ marginTop: 10 }}>
-        <button
-          disabled={page === 1}
-          onClick={() => setPage(page - 1)}
-        >
+        <button disabled={page === 1} onClick={() => setPage(page - 1)}>
           Prev
         </button>
 
-        <span style={{ margin: "0 10px" }}>
-          Page {page}
-        </span>
+        <span style={{ margin: "0 10px" }}>Page {page}</span>
 
         <button
-          disabled={
-            page * pageSize >= processedInvoices.length
-          }
+          disabled={page * pageSize >= processedInvoices.length}
           onClick={() => setPage(page + 1)}
         >
           Next
@@ -182,15 +186,15 @@ export default function InvoicesPage() {
       </div>
 
       {/* MODAL */}
+     
       <InvoiceModal
         isOpen={modalOpen}
         initialData={
           editingInvoice
             ? {
-              rpa_customer_id: (editingInvoice as any)
-                .customer_id,
-              date: editingInvoice.date,
-              status: editingInvoice.status,
+              rpa_customer_id: editingInvoice.rpa_customer_id,
+              date: editingInvoice.date?.split("T")[0],
+              status: mapStatus(editingInvoice.status),
             }
             : null
         }
@@ -209,9 +213,7 @@ export default function InvoicesPage() {
               }
             );
 
-            if (updated) {
-              await reloadInvoices();
-            }
+            if (updated) await reloadInvoices();
           } else {
             const created = await InvoiceService.create({
               status: data.status ?? "Pending",
@@ -220,10 +222,7 @@ export default function InvoicesPage() {
             });
 
             if (created) {
-              // 🔥 REFRESH LIST
               await reloadInvoices();
-
-              // 🚀 NAVIGATE TO DETAIL PAGE
               navigate(`/invoices/${created.id}`);
             }
           }

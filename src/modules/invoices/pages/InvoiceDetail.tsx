@@ -20,7 +20,10 @@ type Invoice = {
   id: number;
   status: InvoiceStatus;
   date: string;
-  customer?: any;
+  rpa_customer_id: number;
+  customer?: {
+    firstname: string;
+  };
   lines: InvoiceLine[];
   total?: number;
 };
@@ -72,12 +75,12 @@ export default function InvoiceDetail() {
   const calcSubtotal = (lines: any[]) =>
     lines.reduce((sum, l) => sum + calcLineTotal(l), 0);
 
- 
+
 
   const getPrice = (l: any) => Number(l.price ?? 0);
-const getAmount = (l: any) => Number(l.amount ?? 0);
+  const getAmount = (l: any) => Number(l.amount ?? 0);
 
-const getLineTotal = (l: any) => getPrice(l) * getAmount(l);
+  const getLineTotal = (l: any) => getPrice(l) * getAmount(l);
 
   // -------------------------
   // RELOAD
@@ -300,7 +303,7 @@ const getLineTotal = (l: any) => getPrice(l) * getAmount(l);
       </p>
 
       <p>
-        Customer: {data.customer?.firstname ?? data.rpa_customer_id ?? "-"}
+        Customer: {data.customer?.firstname ?? "-"}
       </p>
 
       <h2>Total: €{total.toFixed(2)}</h2>
@@ -357,7 +360,7 @@ const getLineTotal = (l: any) => getPrice(l) * getAmount(l);
               </td>
               <td>{l.amount}</td>
               <td>
-              <td>{getPrice(l).toFixed(2)}</td>
+                <td>{getPrice(l).toFixed(2)}</td>
               </td>
               <td>
 

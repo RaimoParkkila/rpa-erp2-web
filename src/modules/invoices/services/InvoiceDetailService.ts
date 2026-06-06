@@ -49,7 +49,11 @@ export const InvoiceDetailService = {
     return {
       id: invoice.id,
       status: invoice.status,
+
       rpa_customer_id: invoice.rpa_customer_id,
+
+      // 🔥 FIX: tämä oli puuttuva ja aiheutti undefined bugit
+      date: invoice.date,
 
       customer,
       lines: safeLines,
