@@ -16,19 +16,19 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [brandFilter, setBrandFilter] = useState<string>("ALL");
+  const [brandFilter, setBrandFilter] = useState("ALL");
   const [minPrice, setMinPrice] = useState<number | "">("");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
 
-  const [sort, setSort] = useState<string>("NONE");
-
-  const removeBrandFilter = () => setBrandFilter("ALL");
-  const removeMinPrice = () => setMinPrice("");
-  const removeMaxPrice = () => setMaxPrice("");
+  const [sort, setSort] = useState("NONE");
   const [search, setSearch] = useState("");
+
   const navigate = useNavigate();
+
   const [editingId, setEditingId] = useState<number | null>(null);
- const [editProduct, setEditProduct] = useState<any>(null);
+  const [editProduct, setEditProduct] = useState<any>(null);
+
+
 
   const [newProduct, setNewProduct] = useState({
     productname: "",
@@ -37,7 +37,74 @@ export default function Products() {
     price: 0,
   });
 
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
+  const removeBrandFilter = () => setBrandFilter("ALL");
+  const removeMinPrice = () => setMinPrice("");
+  const removeMaxPrice = () => setMaxPrice("");
+  const [hoverImage, setHoverImage] = useState<string | null>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+  // ================= FETCH =================
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  async function fetchProducts() {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("rpa_shop_product")
+      .select("id, productname, brand, model, price, status, image_url");
+
+    if (error) console.error(error);
+    else setProducts((data as Product[]) || []);
+
+    setLoading(false);
+  }
+
+  // ================= DELETE (FIXED) =================
+  async function deleteProduct(id: number) {
+    const ok = window.confirm("Delete product?");
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("rpa_shop_product")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  // ================= EDIT SAVE =================
+  async function saveEdit() {
+    if (!editProduct || editingId === null) return;
+
+    const { error } = await supabase
+      .from("rpa_shop_product")
+      .update({
+        productname: editProduct.productname,
+        brand: editProduct.brand,
+        model: editProduct.model,
+        price: editProduct.price,
+      })
+      .eq("id", editingId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setEditingId(null);
+    setEditProduct(null);
+    fetchProducts();
+  }
+
+  // ================= ADD PRODUCT =================
   async function addProduct() {
     let imageUrl = "";
 
@@ -60,15 +127,13 @@ export default function Products() {
       imageUrl = data.publicUrl;
     }
 
-    const { error } = await supabase
-      .from("rpa_shop_product")
-      .insert({
-        productname: newProduct.productname,
-        brand: newProduct.brand,
-        model: newProduct.model,
-        price: newProduct.price,
-        image_url: imageUrl,
-      });
+    const { error } = await supabase.from("rpa_shop_product").insert({
+      productname: newProduct.productname,
+      brand: newProduct.brand,
+      model: newProduct.model,
+      price: newProduct.price,
+      image_url: imageUrl,
+    });
 
     if (error) {
       console.error(error);
@@ -83,105 +148,50 @@ export default function Products() {
     });
 
     setImageFile(null);
-
-    fetchProducts();
-  }
-  const [imageFile, setImageFile] = useState<File | null>(null);
-
-  async function deleteProduct(id: number) {
-    const { error } = await supabase
-      .from("rpa_shop_product")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
     fetchProducts();
   }
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  async function fetchProducts() {
-    setLoading(true);
-
-    const { data, error } = await supabase
-      .from("rpa_shop_product")
-      .select("id, productname, brand, model, price, status, image_url");
-
-    if (error) {
-      console.error("FETCH ERROR:", error);
-    } else {
-      setProducts((data as Product[]) || []);
-    }
-
-    setLoading(false);
-  }
-
+  // ================= FILTER =================
   const brands = Array.from(new Set(products.map((p) => p.brand)));
 
-  // 🔥 FILTER
   const filteredProducts = products.filter((p) => {
-    const matchesBrand =
-      brandFilter === "ALL" || p.brand === brandFilter;
-
-    const matchesMin =
-      minPrice === "" || p.price >= Number(minPrice);
-
-    const matchesMax =
-      maxPrice === "" || p.price <= Number(maxPrice);
-
-    const matchesSearch =
-      search === "" ||
-      p.productname.toLowerCase().includes(search.toLowerCase()) ||
-      p.brand.toLowerCase().includes(search.toLowerCase()) ||
-      p.model.toLowerCase().includes(search.toLowerCase());
+    const name = (p.productname ?? "").toLowerCase();
+    const brand = (p.brand ?? "").toLowerCase();
+    const model = (p.model ?? "").toLowerCase();
 
     return (
-      matchesBrand &&
-      matchesMin &&
-      matchesMax &&
-      matchesSearch
+      (brandFilter === "ALL" || p.brand === brandFilter) &&
+      (minPrice === "" || p.price >= Number(minPrice)) &&
+      (maxPrice === "" || p.price <= Number(maxPrice)) &&
+      (search === "" ||
+        name.includes(search.toLowerCase()) ||
+        brand.includes(search.toLowerCase()) ||
+        model.includes(search.toLowerCase()))
     );
   });
-  // 🔥 SORT
+
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sort) {
       case "PRICE_ASC":
         return a.price - b.price;
-
       case "PRICE_DESC":
         return b.price - a.price;
-
       case "NAME_AZ":
         return a.productname.localeCompare(b.productname);
-
       case "NAME_ZA":
         return b.productname.localeCompare(a.productname);
-
       default:
         return 0;
     }
   });
 
+  // ================= UI =================
   return (
-    <div>
-      <h1>Products</h1>
+    <div style={{ padding: 20, background: "#0f0f0f", color: "white" }}>
+      <h2>Products</h2>
 
-
-      <div style={{
-        marginBottom: 20,
-        padding: 10,
-        border: "1px solid #333",
-        borderRadius: 8,
-        background: "#111",
-      }}>
-        <h3>Add Product</h3>
-
+      {/* ADD */}
+      <div style={{ marginBottom: 20 }}>
         <input
           placeholder="Name"
           value={newProduct.productname}
@@ -208,7 +218,6 @@ export default function Products() {
 
         <input
           type="number"
-          placeholder="Price"
           value={newProduct.price}
           onChange={(e) =>
             setNewProduct({ ...newProduct, price: Number(e.target.value) })
@@ -217,213 +226,69 @@ export default function Products() {
 
         <input
           type="file"
-          accept="image/*"
-          onChange={(e) => {
-            if (e.target.files) setImageFile(e.target.files[0]);
-          }}
+          onChange={(e) =>
+            e.target.files && setImageFile(e.target.files[0])
+          }
         />
 
-        <button onClick={addProduct}>
-          Add Product
-        </button>
+        <button onClick={addProduct}>Add</button>
       </div>
-      {/* FILTER ROW */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: "20px",
-          flexWrap: "wrap",
-          marginBottom: "15px",
-        }}
-      >
-        {/* BRAND FILTER */}
-        {/* BRAND FILTER */}
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
 
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              padding: "6px",
-              borderRadius: "6px",
-              border: "1px solid #333",
-              background: "#1e1e1e",
-              color: "white",
-              minWidth: "220px",
-            }}
-          />
+      {/* FILTER */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 15 }}>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} />
 
-          <button
-            onClick={() => setBrandFilter("ALL")}
-            style={{
-              padding: "6px 12px",
-              borderRadius: "999px",
-              border: "1px solid #333",
-              background: brandFilter === "ALL" ? "#00ffcc" : "#1e1e1e",
-              color: brandFilter === "ALL" ? "#000" : "#fff",
-              cursor: "pointer",
-            }}
-          >
-            ALL
-          </button>
-
+        <select
+          value={brandFilter}
+          onChange={(e) => setBrandFilter(e.target.value)}
+        >
+          <option value="ALL">ALL</option>
           {brands.map((b) => (
-            <button
-              key={b}
-              onClick={() => setBrandFilter(b)}
-              style={{
-                padding: "6px 12px",
-                borderRadius: "999px",
-                border: "1px solid #333",
-                background: brandFilter === b ? "#00ffcc" : "#1e1e1e",
-                color: brandFilter === b ? "#000" : "#fff",
-                cursor: "pointer",
-              }}
-            >
-              {b}
-            </button>
+            <option key={b}>{b}</option>
           ))}
-        </div>
-
-        {/* PRICE + SORT */}
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <input
-            type="number"
-            placeholder="Min price"
-            value={minPrice}
-            onChange={(e) =>
-              setMinPrice(e.target.value === "" ? "" : Number(e.target.value))
-            }
-            style={{
-              padding: "6px",
-              borderRadius: "6px",
-              border: "1px solid #333",
-              background: "#1e1e1e",
-              color: "white",
-              width: "120px",
-            }}
-          />
-
-          <input
-            type="number"
-            placeholder="Max price"
-            value={maxPrice}
-            onChange={(e) =>
-              setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))
-            }
-            style={{
-              padding: "6px",
-              borderRadius: "6px",
-              border: "1px solid #333",
-              background: "#1e1e1e",
-              color: "white",
-              width: "120px",
-            }}
-          />
-
-          {/* SORT DROPDOWN */}
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            style={{
-              padding: "6px 10px",
-              borderRadius: "6px",
-              border: "1px solid #333",
-              background: "#1e1e1e",
-              color: "white",
-            }}
-          >
-            <option value="NONE">Sort</option>
-            <option value="PRICE_ASC">Price ↑</option>
-            <option value="PRICE_DESC">Price ↓</option>
-            <option value="NAME_AZ">Name A-Z</option>
-            <option value="NAME_ZA">Name Z-A</option>
-          </select>
-        </div>
+        </select>
       </div>
 
-      {/* ACTIVE CHIPS */}
-      {(brandFilter !== "ALL" || minPrice !== "" || maxPrice !== "") && (
-        <div style={{ display: "flex", gap: "10px", marginBottom: "15px", flexWrap: "wrap" }}>
-          {brandFilter !== "ALL" && (
-            <div onClick={removeBrandFilter} style={{
-              padding: "6px 12px",
-              borderRadius: "999px",
-              background: "#00ffcc",
-              color: "#000",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}>
-              Brand: {brandFilter} ✕
-            </div>
-          )}
-
-          {minPrice !== "" && (
-            <div onClick={removeMinPrice} style={{
-              padding: "6px 12px",
-              borderRadius: "999px",
-              background: "#1e3a5f",
-              color: "#4da3ff",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}>
-              Min: €{minPrice} ✕
-            </div>
-          )}
-
-          {maxPrice !== "" && (
-            <div onClick={removeMaxPrice} style={{
-              padding: "6px 12px",
-              borderRadius: "999px",
-              background: "#1f3d2b",
-              color: "#3dff9a",
-              cursor: "pointer",
-              fontSize: "12px",
-            }}>
-              Max: €{maxPrice} ✕
-            </div>
-          )}
-        </div>
-      )}
-      
       {/* TABLE */}
-      {loading && <p>Loading...</p>}
-
-      {!loading && (
-        <table border={1} cellPadding={8} style={{ width: "100%" }}>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table width="100%">
           <thead>
             <tr>
-              <th>Image</th>
               <th>Name</th>
               <th>Brand</th>
               <th>Model</th>
               <th>Price</th>
-              <th>Status</th>
-              <th>Action</th>
-
+              <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {sortedProducts.map((p) => (
-              <tr
-                key={p.id}
-                onClick={() => navigate(`/products/${p.id}`)}
-                style={{ cursor: "pointer" }}
-              >
+              <tr key={p.id}>
+
+                {/* IMAGE COLUMN (PUUTTUI) */}
                 <td>
                   {p.image_url ? (
                     <img
                       src={p.image_url}
-                      alt={p.productname}
                       style={{
-                        width: "60px",
-                        height: "60px",
+                        width: "50px",
+                        height: "50px",
                         objectFit: "cover",
                         borderRadius: "6px",
+                        cursor: "zoom-in",
+                      }}
+                      onMouseMove={(e) => {
+                        setHoverPos({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseEnter={(e) => {
+                        setHoverImage(p.image_url || null);
+                        setHoverPos({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseLeave={() => {
+                        setHoverImage(null);
                       }}
                     />
                   ) : (
@@ -431,54 +296,102 @@ export default function Products() {
                   )}
                 </td>
 
-                <td>{p.productname}</td>
+                <td onClick={() => navigate(`/products/${p.id}`)}>
+                  {p.productname}
+                </td>
+
                 <td>{p.brand}</td>
                 <td>{p.model}</td>
                 <td>€{p.price}</td>
-                <td>{p.status || "—"}</td>
-             
+
                 <td>
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={() => {
+                      setEditingId(p.id);
+                      setEditProduct(p);
+                    }}
+                  >
+                    Edit
+                  </button>
 
-                    {/* EDIT */}
-                    <button
-                      onClick={() => {
-                        setEditingId(p.id);
-                        setEditProduct(p);
-                      }}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        border: "1px solid #333",
-                        background: "#1e1e1e",
-                        color: "white",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Edit
-                    </button>
-
-                    {/* DELETE */}
-                    <button
-                      onClick={() => deleteProduct(p.id)}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: "6px",
-                        border: "1px solid #333",
-                        background: "#2a1e1e",
-                        color: "#ff4d4d",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Delete
-                    </button>
-
-                  </div>
+                  <button onClick={() => deleteProduct(p.id)}>
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+
+      {/* EDIT MODAL SIMPLE */}
+      {editingId !== null && (
+        <div style={{ marginTop: 20 }}>
+          <h3>Edit Product</h3>
+
+          <input
+            value={editProduct?.productname || ""}
+            onChange={(e) =>
+              setEditProduct({
+                ...editProduct,
+                productname: e.target.value,
+              })
+            }
+          />
+
+          <input
+            value={editProduct?.brand || ""}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, brand: e.target.value })
+            }
+          />
+
+          <input
+            value={editProduct?.model || ""}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, model: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            value={editProduct?.price || 0}
+            onChange={(e) =>
+              setEditProduct({
+                ...editProduct,
+                price: Number(e.target.value),
+              })
+            }
+          />
+
+          <button onClick={saveEdit}>Save</button>
+          <button onClick={() => setEditingId(null)}>Cancel</button>
+        </div>
+      )}
+      {hoverImage && (
+        <div
+          style={{
+            position: "fixed",
+            top: hoverPos.y + 15,
+            left: hoverPos.x + 15,
+            pointerEvents: "none",
+            zIndex: 9999,
+            background: "#000",
+            padding: "6px",
+            borderRadius: "8px",
+            border: "1px solid #333",
+          }}
+        >
+          <img
+            src={hoverImage}
+            style={{
+              width: "250px",
+              height: "250px",
+              objectFit: "cover",
+              borderRadius: "6px",
+            }}
+          />
+        </div>
       )}
     </div>
   );

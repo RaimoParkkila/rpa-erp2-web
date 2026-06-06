@@ -31,8 +31,13 @@ import AdminRoute from "./routes/AdminRoute";
 import CustomerDetail from "./pages/CustomerDetail";
 import StorageDetail from "./pages/StorageDetail";
 
+
 import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
 import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "./services/supabase";
+
+
 
 
 
@@ -48,6 +53,13 @@ function Layout() {
     padding: "6px 0",
   });
 
+
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
   return (
     <div style={{ display: "flex", height: "100vh" }}>
       {/* SIDEBAR */}
@@ -57,11 +69,16 @@ function Layout() {
           background: "#111",
           color: "white",
           padding: "20px",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
         }}
+        
       >
-        <h2>RPA ERP</h2>
+        RPA ERP
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* NAV */}
+        <nav style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
           <Link to="/" style={linkStyle("/")}>Dashboard</Link>
           <Link to="/customers" style={linkStyle("/customers")}>Customers</Link>
           <Link to="/products" style={linkStyle("/products")}>Products</Link>
@@ -71,9 +88,30 @@ function Layout() {
           <Link to="/shop" style={linkStyle("/shop")}>Shop</Link>
           <Link to="/admin" style={linkStyle("/admin")}>Admin</Link>
         </nav>
-      </aside>
 
+        {/* 🔥 TÄMÄ ON LOGOUT BLOKKI */}
+        <div style={{ marginTop: "auto" }}>
+          <hr style={{ margin: "20px 0", borderColor: "#333" }} />
+
+          <button
+            onClick={handleLogout}
+            style={{
+              width: "100%",
+              padding: "10px",
+              marginBottom: "10px",
+              background: "#d32f2f",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Logout
+          </button>
+        </div>
+      </aside>
       {/* MAIN CONTENT */}
+
       <main style={{ flex: 1, padding: "20px", overflow: "auto" }}>
         <Outlet />
       </main>
