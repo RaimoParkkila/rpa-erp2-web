@@ -1,16 +1,52 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 
-type CrudOptions<T> = {
-  table: string;
-  idField?: string; // default "id"
+/**
+ * Tenant helper (voit myöhemmin siirtää Contextiin)
+ */
+function getTenantId(): string | null {
+  return localStorage.getItem("tenant_id");
+}
+
+/**
+ * Domain → table mapping (type-safe)
+ */
+type DomainTables = {
+  customers: "rpa_customer";
+  products: "rpa_shop_product";
+  invoices: "rpaheaderofinvoice";
+  invoice_lines: "rpa_invoice_line";
+  storage: "rpa_storage";
+  wholesale: "rpa_wholesale";
+};
+
+type DomainName = keyof DomainTables;
+
+type CrudOptions = {
+  domain: DomainName;
+  idField?: string;
+  enableTenant?: boolean;
 };
 
 export function useCrud<T extends Record<string, any>>(
-  id: number | null,
-  options: CrudOptions<T>
+  options: CrudOptions
 ) {
-  const { table, idField = "id" } = options;
+  const { domain, idField = "id", enableTenant = true } = options;
+
+  const tenantId = getTenantId();
+
+  const table: DomainTables[DomainName] = (() => {
+    const map: DomainTables = {
+      customers: "rpa_customer",
+      products: "rpa_shop_product",
+      invoices: "rpaheaderofinvoice",
+      invoice_lines: "rpa_invoice_line",
+      storage: "rpa_storage",
+      wholesale: "rpa_wholesale",
+    };
+
+    return map[domain];
+  })();
 
   const [data, setData] = useState<T | null>(null);
   const [list, setList] = useState<T[]>([]);
@@ -18,18 +54,21 @@ export function useCrud<T extends Record<string, any>>(
   const [loading, setLoading] = useState(false);
 
   // -------------------
-  // GET BY ID
+  // GET ONE
   // -------------------
-  const loadOne = async () => {
-    if (!id) return;
-
+  const getById = async (id: number) => {
     setLoading(true);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from(table)
       .select("*")
-      .eq(idField, id)
-      .single();
+      .eq(idField, id);
+
+    if (enableTenant && tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { data, error } = await query.single();
 
     if (!error) {
       setData(data);
@@ -44,12 +83,16 @@ export function useCrud<T extends Record<string, any>>(
   // -------------------
   // GET ALL
   // -------------------
-  const loadAll = async () => {
+  const getAll = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from(table)
-      .select("*");
+    let query = supabase.from(table).select("*");
+
+    if (enableTenant && tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { data, error } = await query;
 
     if (!error) {
       setList(data || []);
@@ -64,9 +107,13 @@ export function useCrud<T extends Record<string, any>>(
   // CREATE
   // -------------------
   const create = async (payload: Partial<T>) => {
+    const safePayload = enableTenant
+      ? { ...payload, tenant_id: tenantId }
+      : payload;
+
     const { data, error } = await supabase
       .from(table)
-      .insert(payload)
+      .insert(safePayload)
       .select()
       .single();
 
@@ -81,32 +128,40 @@ export function useCrud<T extends Record<string, any>>(
   // -------------------
   // UPDATE
   // -------------------
-  const update = async (payload: Partial<T>) => {
-    if (!id) return;
-
-    const { error } = await supabase
+  const update = async (id: number, payload: Partial<T>) => {
+    let query = supabase
       .from(table)
       .update(payload)
       .eq(idField, id);
+
+    if (enableTenant && tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error(error);
       return;
     }
 
-    await loadOne();
+    await getById(id);
   };
 
   // -------------------
   // DELETE
   // -------------------
-  const remove = async () => {
-    if (!id) return;
-
-    const { error } = await supabase
+  const remove = async (id: number) => {
+    let query = supabase
       .from(table)
       .delete()
       .eq(idField, id);
+
+    if (enableTenant && tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { error } = await query;
 
     if (error) {
       console.error(error);
@@ -117,11 +172,13 @@ export function useCrud<T extends Record<string, any>>(
   };
 
   // -------------------
-  // INIT
+  // INIT CHECK
   // -------------------
   useEffect(() => {
-    if (id) loadOne();
-  }, [id]);
+    if (enableTenant && !tenantId) {
+      console.warn("tenant_id missing");
+    }
+  }, []);
 
   return {
     data,
@@ -129,8 +186,9 @@ export function useCrud<T extends Record<string, any>>(
     form,
     setForm,
     loading,
-    loadOne,
-    loadAll,
+
+    getById,
+    getAll,
     create,
     update,
     remove,

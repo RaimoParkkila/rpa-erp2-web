@@ -256,6 +256,7 @@ export default function Products() {
         <table width="100%">
           <thead>
             <tr>
+              <th>Image</th>
               <th>Name</th>
               <th>Brand</th>
               <th>Model</th>

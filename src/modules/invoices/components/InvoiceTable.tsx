@@ -76,12 +76,13 @@ export default function InvoiceTable({
           <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
             <td>{inv.id}</td>
 
-            <td>{inv.customer ?? "Unknown"}</td>
-
-            {/* ✔ FIX: safe + formatted date */}
             <td>
-              {inv.date ? formatDateES(inv.date) : "-"}
+              {typeof inv.customer === "string"
+                ? inv.customer
+                : inv.customer?.firstname ?? "Unknown"}
             </td>
+
+            <td>{inv.date ? formatDateES(inv.date) : "-"}</td>
 
             <td>{formatCurrency(inv.total)}</td>
 
