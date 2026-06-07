@@ -13,8 +13,6 @@ type InvoiceLine = {
   productname_snapshot: string;
   price_snapshot: number;
   amount_snapshot: number;
-  price?: number;
-  amount?: number;
 };
 
 type Invoice = {
@@ -22,9 +20,14 @@ type Invoice = {
   status: InvoiceStatus;
   date: string;
   rpa_customer_id: number;
-  customer?: { id: number; firstname: string } | null;
   lines: InvoiceLine[];
-  total?: number;
+};
+
+type EditingLine = {
+  id: number;
+  productname: string;
+  amount: number;
+  price: number;
 };
 
 export default function InvoiceDetail() {
@@ -37,17 +40,14 @@ export default function InvoiceDetail() {
   const [linesCache, setLinesCache] = useState<any[]>([]);
 
   const [showAddLine, setShowAddLine] = useState(false);
-  //const [lineAmount, setLineAmount] = useState("1");
-  const [lineAmount, setLineAmount] = useState<string>("1");
-  
-  const [linePrice, setLinePrice] = useState<number>(0);
-  const [lineProduct, setLineProduct] = useState<string>("");
+  const [lineAmount, setLineAmount] = useState(1);
+  const [linePrice, setLinePrice] = useState(0);
+  const [lineProduct, setLineProduct] = useState("");
 
-  const [editingLine, setEditingLine] = useState<any>(null);
+  const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const productRef = useRef<HTMLSelectElement | null>(null);
-
 
   const toNum = (v: any) => {
     const n = Number(v);
@@ -55,7 +55,7 @@ export default function InvoiceDetail() {
   };
 
   const calcLineTotal = (l: any) =>
-    toNum(l.price_snapshot ?? l.price) * toNum(l.amount_snapshot ?? l.amount);
+    toNum(l.price_snapshot) * toNum(l.amount_snapshot);
 
   const subtotal = linesCache.reduce(
     (s, l) => s + calcLineTotal(l),
@@ -73,9 +73,19 @@ export default function InvoiceDetail() {
     if (!invoiceId) return;
 
     setLoading(true);
+
     InvoiceDetailService.getById(invoiceId).then((res) => {
       setData(res);
-      setLinesCache(res?.lines || []);
+
+      const normalizedLines = (res?.lines || []).map((l: any) => ({
+        id: l.id,
+        productname_snapshot:
+          l.productname_snapshot ?? l.productname ?? "—",
+        amount_snapshot: Number(l.amount_snapshot ?? l.amount ?? 1),
+        price_snapshot: Number(l.price_snapshot ?? l.price ?? 0),
+      }));
+
+      setLinesCache(normalizedLines);
       setLoading(false);
     });
   };
@@ -105,10 +115,12 @@ export default function InvoiceDetail() {
     const payload = {
       rpa_headerofinvoice_id: invoiceId,
       rpa_shop_product_id: selected.id,
-
       productname: selected.productname,
+      productname_snapshot: selected.productname,
       price: toNum(linePrice || selected.price),
+      price_snapshot: toNum(linePrice || selected.price),
       amount: toNum(lineAmount),
+      amount_snapshot: toNum(lineAmount),
     };
 
     const { error } = await supabase
@@ -128,19 +140,29 @@ export default function InvoiceDetail() {
     reload();
   };
 
+  // ---------------- EDIT OPEN ----------------
+  const openEdit = (l: any) => {
+    setEditingLine({
+      id: l.id,
+      productname: l.productname_snapshot ?? "",
+      amount: l.amount_snapshot ?? 1,
+      price: l.price_snapshot ?? 0,
+    });
+  };
+
   // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
 
+    const payload = {
+      productname_snapshot: editingLine.productname ?? "",
+      amount_snapshot: Number(editingLine.amount ?? 1),
+      price_snapshot: Number(editingLine.price ?? 0),
+    };
+
     const { error } = await supabase
       .from("rpa_invoice_line")
-      .update({
-        rpa_shop_product_id: editingLine.rpa_shop_product_id,
-
-        productname_snapshot: editingLine.productname_snapshot,
-        price_snapshot: toNum(editingLine.price_snapshot),
-        amount_snapshot: toNum(editingLine.amount_snapshot),
-      })
+      .update(payload)
       .eq("id", editingLine.id);
 
     if (error) {
@@ -189,9 +211,8 @@ export default function InvoiceDetail() {
 
   return (
     <>
-      <h1>Invoice #{data.id}</h1>
-
-      <h2>Total: €{total.toFixed(2)}</h2>
+      Invoice #{data.id}
+      <h3>Total: €{total.toFixed(2)}</h3>
 
       <button disabled={!isDraft} onClick={() => setShowAddLine(true)}>
         + Add Line
@@ -214,13 +235,14 @@ export default function InvoiceDetail() {
         <tbody>
           {linesCache.map((l) => (
             <tr key={l.id}>
-              <td>{l.productname ?? l.productname_snapshot}</td>
-              <td>{l.amount ?? l.amount_snapshot}</td>
-              <td>{toNum(l.price_snapshot).toFixed(2)}</td>
-              <td>{calcLineTotal(l).toFixed(2)}</td>
-
+              <td>{l.productname_snapshot}</td>
+              <td>{l.amount_snapshot}</td>
+              <td>{Number(l.price_snapshot).toFixed(2)}</td>
               <td>
-                <button onClick={() => setEditingLine(l)}>Edit</button>
+                {(Number(l.amount_snapshot) * Number(l.price_snapshot)).toFixed(2)}
+              </td>
+              <td>
+                <button onClick={() => openEdit(l)}>Edit</button>
                 <button onClick={() => handleDeleteLine(l.id)}>
                   Delete
                 </button>
@@ -252,55 +274,80 @@ export default function InvoiceDetail() {
               </option>
             ))}
           </select>
+
           <input
             type="number"
             min={1}
             value={lineAmount}
-            onChange={(e) => {
-              const v = e.target.value;
-
-              // estä negatiiviset
-              if (Number(v) < 0) return;
-
-              setLineAmount(v);
-            }}
+            onChange={(e) =>
+              setLineAmount(Number(e.target.value) || 1)
+            }
           />
+
           <input
             type="number"
             value={linePrice}
-            onChange={(e) => setLinePrice(Number(e.target.value))}
+            onChange={(e) =>
+              setLinePrice(Number(e.target.value))
+            }
           />
 
           <button onClick={handleAddLine}>Save</button>
-          <button onClick={() => setShowAddLine(false)}>Cancel</button>
+          <button onClick={() => setShowAddLine(false)}>
+            Cancel
+          </button>
         </div>
       )}
 
       {/* EDIT */}
       {editingLine && (
-        <div>
-          <input
-            value={editingLine.amount_snapshot}
-            onChange={(e) =>
-              setEditingLine({
-                ...editingLine,
-                amount_snapshot: Number(e.target.value),
-              })
-            }
-          />
+        <div style={{ border: "1px solid #ccc", padding: 10 }}>
+          <div>
+            <label>Product</label>
+            <input
+              value={editingLine.productname}
+              onChange={(e) =>
+                setEditingLine({
+                  ...editingLine,
+                  productname: e.target.value,
+                })
+              }
+            />
+          </div>
 
-          <input
-            value={editingLine.price_snapshot}
-            onChange={(e) =>
-              setEditingLine({
-                ...editingLine,
-                price_snapshot: Number(e.target.value),
-              })
-            }
-          />
+          <div>
+            <label>Amount</label>
+            <input
+              type="number"
+              min={1}
+              value={editingLine.amount}
+              onChange={(e) =>
+                setEditingLine({
+                  ...editingLine,
+                  amount: Number(e.target.value) || 1,
+                })
+              }
+            />
+          </div>
+
+          <div>
+            <label>Price</label>
+            <input
+              type="number"
+              value={editingLine.price}
+              onChange={(e) =>
+                setEditingLine({
+                  ...editingLine,
+                  price: Number(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
 
           <button onClick={handleUpdateLine}>Save</button>
-          <button onClick={() => setEditingLine(null)}>Cancel</button>
+          <button onClick={() => setEditingLine(null)}>
+            Cancel
+          </button>
         </div>
       )}
 
