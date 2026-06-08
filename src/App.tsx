@@ -52,7 +52,7 @@ function Layout() {
     await supabase.auth.signOut();
     navigate("/login");
   };
-
+    console.log("API KEY:", import.meta.env.VITE_API_KEY);
   return (
     <div style={{ display: "flex", height: "100vh" }}>
       {/* SIDEBAR */}

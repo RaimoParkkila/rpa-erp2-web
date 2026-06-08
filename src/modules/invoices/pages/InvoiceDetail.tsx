@@ -9,7 +9,11 @@ import { isInvoiceEditable } from "@domains/invoices/invoicePolicy";
 
 import { invoiceLineService } from "@modules/invoices/services/invoiceLineService";
 import { InvoiceDetailService } from "@modules/invoices/services/InvoiceDetailService";
+import { supabase } from "@services/supabase";
+import AddInvoiceLine from "@components/AddInvoiceLine";
 
+
+// ---------------- DOMAIN MODEL ----------------
 type InvoiceLine = {
   id: number;
   productname: string;
@@ -25,6 +29,14 @@ type Invoice = {
   lines: InvoiceLine[];
 };
 
+// ---------------- UI EDIT MODEL ----------------
+type EditingLine = {
+  id: number;
+  productname: string;
+  amount: string;
+  price: string;
+};
+
 export default function InvoiceDetail() {
   const { id } = useParams();
   const invoiceId = Number(id);
@@ -34,137 +46,94 @@ export default function InvoiceDetail() {
 
   const [lines, setLines] = useState<InvoiceLine[]>([]);
 
-  const [showAddLine, setShowAddLine] = useState(false);
-  const [lineAmount, setLineAmount] = useState(1);
-  const [linePrice, setLinePrice] = useState(0);
-  const [lineProduct, setLineProduct] = useState("");
-
-  const [editingLine, setEditingLine] = useState<any>(null);
+  const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
-  const productRef = useRef<HTMLSelectElement | null>(null);
+  const safeProducts = Array.isArray(products) ? products : [];
 
   const toNum = (v: any) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   };
 
-  const calcLineTotal = (l: InvoiceLine) =>
-    toNum(l.amount) * toNum(l.price);
+  const calcTotal = (l: InvoiceLine) => toNum(l.amount) * toNum(l.price);
 
-  const subtotal = lines.reduce((s, l) => s + calcLineTotal(l), 0);
+  const subtotal = lines.reduce((s, l) => s + calcTotal(l), 0);
   const vat = subtotal * 0.21;
   const total = subtotal + vat;
 
   const isDraft = isInvoiceEditable(data?.status);
 
-  // ---------------- LOAD (ONLY ON INIT) ----------------
+  // ---------------- LOAD ----------------
   const reload = async () => {
-    try {
-      setLoading(true);
+    setLoading(true);
 
-      const res = await InvoiceDetailService.getById(invoiceId);
+    const res = await InvoiceDetailService.getById(invoiceId);
+    setData(res);
 
-      setData(res);
+    const normalized: InvoiceLine[] = (res?.lines || []).map((l: any) => ({
+      id: l.id,
+      productname: l.productname_snapshot ?? l.productname ?? "",
+      amount: Number(l.amount_snapshot ?? l.amount ?? 1),
+      price: Number(l.price_snapshot ?? l.price ?? 0),
+    }));
 
-      const normalized = (res?.lines || []).map((l: any) => ({
-        id: l.id,
-        productname: l.productname_snapshot ?? l.productname ?? "",
-        amount: Number(l.amount_snapshot ?? l.amount ?? 1),
-        price: Number(l.price_snapshot ?? l.price ?? 0),
-      }));
-
-      setLines(normalized);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    setLines(normalized);
+    setLoading(false);
   };
 
   useEffect(() => {
+    if (!invoiceId) return;
     reload();
   }, [invoiceId]);
 
   // ---------------- PRODUCTS ----------------
   useEffect(() => {
-    (async () => {
-      const { data } = await fetch("/api/products").then(r => r.json());
-      setProducts(data || []);
-    })();
-  }, []);
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("rpa_shop_product")
+        .select("id, productname, price");
 
-  // ---------------- ADD (OPTIMISTIC) ----------------
-  const handleAddLine = async () => {
-    if (!invoiceId || !lineProduct) return;
-
-    const selected = products.find(
-      (p) => Number(p.id) === Number(lineProduct)
-    );
-
-    if (!selected) return;
-
-    const tempId = Date.now();
-
-    const optimisticLine: InvoiceLine = {
-      id: tempId,
-      productname: selected.productname,
-      amount: toNum(lineAmount),
-      price: toNum(linePrice || selected.price),
+      if (!error) setProducts(data || []);
     };
 
-    setLines((prev) => [...prev, optimisticLine]);
+    load();
+  }, []);
 
-    setShowAddLine(false);
-    setLineProduct("");
-    setLineAmount(1);
-    setLinePrice(0);
-
-    try {
-      const res = await invoiceLineService.addLine(
-        invoiceId,
-        selected,
-        optimisticLine.amount,
-        optimisticLine.price
-      );
-
-      setLines((prev) =>
-        prev.map((l) =>
-          l.id === tempId ? { ...l, id: res.data.id } : l
-        )
-      );
-    } catch (err) {
-      console.error(err);
-      setLines((prev) => prev.filter((l) => l.id !== tempId));
-    }
+  // ---------------- EDIT OPEN (CRITICAL FIX) ----------------
+  const openEdit = (l: InvoiceLine) => {
+    setEditingLine({
+      id: l.id,
+      productname: l.productname,
+      amount: String(l.amount),
+      price: String(l.price),
+    });
   };
 
-  // ---------------- UPDATE (OPTIMISTIC) ----------------
+  // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
+
+    const updated: InvoiceLine = {
+      id: editingLine.id,
+      productname: editingLine.productname,
+      amount: toNum(editingLine.amount),
+      price: toNum(editingLine.price),
+    };
 
     const backup = lines;
 
     setLines((prev) =>
-      prev.map((l) =>
-        l.id === editingLine.id
-          ? {
-              ...l,
-              productname: editingLine.productname,
-              amount: editingLine.amount,
-              price: editingLine.price,
-            }
-          : l
-      )
+      prev.map((l) => (l.id === updated.id ? updated : l))
     );
 
     setEditingLine(null);
 
     try {
-      await invoiceLineService.updateLine(editingLine.id, {
-        productname_snapshot: editingLine.productname,
-        amount_snapshot: toNum(editingLine.amount),
-        price_snapshot: toNum(editingLine.price),
+      await invoiceLineService.updateLine(updated.id, {
+        productname_snapshot: updated.productname,
+        amount_snapshot: updated.amount,
+        price_snapshot: updated.price,
       });
     } catch (err) {
       console.error(err);
@@ -172,7 +141,7 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ---------------- DELETE (OPTIMISTIC) ----------------
+  // ---------------- DELETE ----------------
   const handleDeleteLine = async (id: number) => {
     const backup = lines;
 
@@ -186,40 +155,16 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ---------------- PDF ----------------
-  const exportPdf = async () => {
-    const input = document.getElementById("invoice-pdf");
-    if (!input) return;
-
-    const canvas = await html2canvas(input, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-    pdf.save(`invoice-${data?.id}.pdf`);
-  };
-
   // ---------------- UI ----------------
   if (loading) return <>Loading...</>;
   if (!data) return <>No invoice found</>;
 
   return (
     <>
-      <h2>Invoice #{data.id}</h2>
+      <div>
+        Invoice #{data.id} | Total: €{total.toFixed(2)}
+      </div>
 
-      <div>Total: €{total.toFixed(2)}</div>
-
-      <button disabled={!isDraft} onClick={() => setShowAddLine(true)}>
-        + Add Line
-      </button>
-
-      <button onClick={reload}>Refresh</button>
-      <button onClick={exportPdf}>Export PDF</button>
-
-      {/* LINES */}
       <table>
         <thead>
           <tr>
@@ -237,9 +182,9 @@ export default function InvoiceDetail() {
               <td>{l.productname}</td>
               <td>{l.amount}</td>
               <td>{l.price.toFixed(2)}</td>
-              <td>{(l.amount * l.price).toFixed(2)}</td>
+              <td>{calcTotal(l).toFixed(2)}</td>
               <td>
-                <button onClick={() => setEditingLine(l)}>Edit</button>
+                <button onClick={() => openEdit(l)}>Edit</button>
                 <button onClick={() => handleDeleteLine(l.id)}>
                   Delete
                 </button>
@@ -248,54 +193,19 @@ export default function InvoiceDetail() {
           ))}
         </tbody>
       </table>
+      {isDraft && (
+        <div style={{ marginTop: 16, padding: 12, border: "1px dashed #ccc" }}>
+          <h4>Add Line</h4>
 
-      {/* ADD */}
-      {showAddLine && (
-        <div>
-          <select
-            ref={productRef}
-            value={lineProduct}
-            onChange={(e) => {
-              const p = products.find(
-                (x) => x.id === Number(e.target.value)
-              );
-
-              setLineProduct(e.target.value);
-              setLinePrice(p?.price ?? 0);
-            }}
-          >
-            <option value="">Select product</option>
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.productname}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="number"
-            value={lineAmount}
-            onChange={(e) =>
-              setLineAmount(Number(e.target.value) || 1)
-            }
+          <AddInvoiceLine
+            products={safeProducts}
+            invoiceId={invoiceId}
+            invoiceLineService={invoiceLineService}
+            onAdded={reload}
           />
-
-          <input
-            type="number"
-            value={linePrice}
-            onChange={(e) =>
-              setLinePrice(Number(e.target.value))
-            }
-          />
-
-          <button onClick={handleAddLine}>Save</button>
-          <button onClick={() => setShowAddLine(false)}>
-            Cancel
-          </button>
         </div>
       )}
-
-      {/* EDIT */}
+      {/* EDIT MODAL */}
       {editingLine && (
         <div>
           <input
@@ -314,7 +224,7 @@ export default function InvoiceDetail() {
             onChange={(e) =>
               setEditingLine({
                 ...editingLine,
-                amount: Number(e.target.value),
+                amount: e.target.value, // IMPORTANT: string stays string
               })
             }
           />
@@ -325,15 +235,13 @@ export default function InvoiceDetail() {
             onChange={(e) =>
               setEditingLine({
                 ...editingLine,
-                price: Number(e.target.value),
+                price: e.target.value,
               })
             }
           />
 
           <button onClick={handleUpdateLine}>Save</button>
-          <button onClick={() => setEditingLine(null)}>
-            Cancel
-          </button>
+          <button onClick={() => setEditingLine(null)}>Cancel</button>
         </div>
       )}
 
