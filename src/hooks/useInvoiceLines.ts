@@ -23,12 +23,22 @@ export function useInvoiceLines(invoiceId: number, products: any[]) {
 
     const tempId = Date.now();
 
-    const optimistic: InvoiceLine = {
+    const optimistic = {
       id: tempId,
       productname: selected.productname,
+      productname_snapshot: selected.productname,
       amount: toNum(amount),
+      amount_snapshot: toNum(amount),
       price: toNum(price || selected.price),
+      price_snapshot: toNum(price || selected.price),
     };
+
+    const normalized = (lines || []).map((l: any) => ({
+      id: l.id,
+      productname: l.productname_snapshot,
+      amount: l.amount_snapshot,
+      price: l.price_snapshot,
+    }));
 
     setLines((prev) => [...prev, optimistic]);
 

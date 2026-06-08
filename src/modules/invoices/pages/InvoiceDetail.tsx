@@ -1,8 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 import InvoicePdfTemplate from "@domains/invoices/components/InvoicePdfTemplate";
 import { isInvoiceEditable } from "@domains/invoices/invoicePolicy";
@@ -10,26 +7,19 @@ import { isInvoiceEditable } from "@domains/invoices/invoicePolicy";
 import { invoiceLineService } from "@modules/invoices/services/invoiceLineService";
 import { InvoiceDetailService } from "@modules/invoices/services/InvoiceDetailService";
 import { supabase } from "@services/supabase";
+
 import AddInvoiceLine from "@components/AddInvoiceLine";
+import { useInvoiceLines } from "../hooks/useInvoiceLines";
+import InvoiceLineEditor from "../components/InvoiceLineEditor";
 
-
-// ---------------- DOMAIN MODEL ----------------
-type InvoiceLine = {
-  id: number;
-  productname: string;
-  amount: number;
-  price: number;
-};
-
+// ---------------- TYPES ----------------
 type Invoice = {
   id: number;
   status: string;
   date: string;
   rpa_customer_id: number;
-  lines: InvoiceLine[];
 };
 
-// ---------------- UI EDIT MODEL ----------------
 type EditingLine = {
   id: number;
   productname: string;
@@ -37,6 +27,9 @@ type EditingLine = {
   price: string;
 };
 
+
+
+// ---------------- COMPONENT ----------------
 export default function InvoiceDetail() {
   const { id } = useParams();
   const invoiceId = Number(id);
@@ -44,64 +37,51 @@ export default function InvoiceDetail() {
   const [data, setData] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [lines, setLines] = useState<InvoiceLine[]>([]);
-
   const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
 
-  const toNum = (v: any) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : 0;
-  };
+  // ---------------- LINES ----------------
+  const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
 
-  const calcTotal = (l: InvoiceLine) => toNum(l.amount) * toNum(l.price);
+  // ---------------- HEADER ----------------
+  const reloadHeader = async () => {
+    if (!invoiceId) return;
 
-  const subtotal = lines.reduce((s, l) => s + calcTotal(l), 0);
-  const vat = subtotal * 0.21;
-  const total = subtotal + vat;
-
-  const isDraft = isInvoiceEditable(data?.status);
-
-  // ---------------- LOAD ----------------
-  const reload = async () => {
     setLoading(true);
-
-    const res = await InvoiceDetailService.getById(invoiceId);
-    setData(res);
-
-    const normalized: InvoiceLine[] = (res?.lines || []).map((l: any) => ({
-      id: l.id,
-      productname: l.productname_snapshot ?? l.productname ?? "",
-      amount: Number(l.amount_snapshot ?? l.amount ?? 1),
-      price: Number(l.price_snapshot ?? l.price ?? 0),
-    }));
-
-    setLines(normalized);
-    setLoading(false);
+    try {
+      const res = await InvoiceDetailService.getById(invoiceId);
+      setData(res);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     if (!invoiceId) return;
-    reload();
+
+    reloadHeader();
+    reloadLines();
   }, [invoiceId]);
 
   // ---------------- PRODUCTS ----------------
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("rpa_shop_product")
         .select("id, productname, price");
 
-      if (!error) setProducts(data || []);
+      setProducts(data || []);
     };
 
     load();
   }, []);
 
-  // ---------------- EDIT OPEN (CRITICAL FIX) ----------------
-  const openEdit = (l: InvoiceLine) => {
+  // ---------------- EDIT ----------------
+  const openEdit = (l: any) => {
+    console.log("OPEN EDIT RAW LINE:", l);
+
     setEditingLine({
       id: l.id,
       productname: l.productname,
@@ -110,24 +90,18 @@ export default function InvoiceDetail() {
     });
   };
 
+  const toNum = (v: any) => Number(v) || 0;
+
   // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
 
-    const updated: InvoiceLine = {
+    const updated = {
       id: editingLine.id,
       productname: editingLine.productname,
       amount: toNum(editingLine.amount),
       price: toNum(editingLine.price),
     };
-
-    const backup = lines;
-
-    setLines((prev) =>
-      prev.map((l) => (l.id === updated.id ? updated : l))
-    );
-
-    setEditingLine(null);
 
     try {
       await invoiceLineService.updateLine(updated.id, {
@@ -135,25 +109,33 @@ export default function InvoiceDetail() {
         amount_snapshot: updated.amount,
         price_snapshot: updated.price,
       });
+
+      setEditingLine(null);
+      reloadLines();
     } catch (err) {
       console.error(err);
-      setLines(backup);
     }
   };
 
   // ---------------- DELETE ----------------
   const handleDeleteLine = async (id: number) => {
-    const backup = lines;
-
-    setLines((prev) => prev.filter((l) => l.id !== id));
-
     try {
       await invoiceLineService.deleteLine(id);
+      reloadLines();
     } catch (err) {
       console.error(err);
-      setLines(backup);
     }
   };
+
+  // ---------------- CALC ----------------
+  const calcTotal = (l: any) =>
+    Number(l.amount) * Number(l.price);
+
+  const subtotal = lines.reduce((s, l) => s + calcTotal(l), 0);
+  const vat = subtotal * 0.21;
+  const total = subtotal + vat;
+
+  const isDraft = isInvoiceEditable(data?.status);
 
   // ---------------- UI ----------------
   if (loading) return <>Loading...</>;
@@ -161,11 +143,13 @@ export default function InvoiceDetail() {
 
   return (
     <>
-      <div>
-        Invoice #{data.id} | Total: €{total.toFixed(2)}
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        Invoice #{data.id}
+        Total: €{total.toFixed(2)}
       </div>
 
-      <table>
+      {/* TABLE */}
+      <table style={{ width: "100%" }}>
         <thead>
           <tr>
             <th>Product</th>
@@ -179,10 +163,16 @@ export default function InvoiceDetail() {
         <tbody>
           {lines.map((l) => (
             <tr key={l.id}>
-              <td>{l.productname}</td>
-              <td>{l.amount}</td>
-              <td>{l.price.toFixed(2)}</td>
-              <td>{calcTotal(l).toFixed(2)}</td>
+              <td>{l.productname_snapshot}</td>
+
+              <td>{l.amount_snapshot}</td>
+
+              <td>{Number(l.price_snapshot).toFixed(2)}</td>
+
+              <td>
+                {(l.amount_snapshot * l.price_snapshot).toFixed(2)}
+              </td>
+
               <td>
                 <button onClick={() => openEdit(l)}>Edit</button>
                 <button onClick={() => handleDeleteLine(l.id)}>
@@ -193,58 +183,28 @@ export default function InvoiceDetail() {
           ))}
         </tbody>
       </table>
+
+      {/* ADD */}
       {isDraft && (
-        <div style={{ marginTop: 16, padding: 12, border: "1px dashed #ccc" }}>
-          <h4>Add Line</h4>
-
-          <AddInvoiceLine
-            products={safeProducts}
-            invoiceId={invoiceId}
-            invoiceLineService={invoiceLineService}
-            onAdded={reload}
-          />
-        </div>
+        <AddInvoiceLine
+          products={safeProducts}
+          invoiceId={invoiceId}
+          invoiceLineService={invoiceLineService}
+          onAdded={reloadLines}
+        />
       )}
-      {/* EDIT MODAL */}
+
+      {/* EDIT */}
       {editingLine && (
-        <div>
-          <input
-            value={editingLine.productname}
-            onChange={(e) =>
-              setEditingLine({
-                ...editingLine,
-                productname: e.target.value,
-              })
-            }
-          />
-
-          <input
-            type="number"
-            value={editingLine.amount}
-            onChange={(e) =>
-              setEditingLine({
-                ...editingLine,
-                amount: e.target.value, // IMPORTANT: string stays string
-              })
-            }
-          />
-
-          <input
-            type="number"
-            value={editingLine.price}
-            onChange={(e) =>
-              setEditingLine({
-                ...editingLine,
-                price: e.target.value,
-              })
-            }
-          />
-
-          <button onClick={handleUpdateLine}>Save</button>
-          <button onClick={() => setEditingLine(null)}>Cancel</button>
-        </div>
+        <InvoiceLineEditor
+          value={editingLine}
+          onChange={setEditingLine}
+          onSave={handleUpdateLine}
+          onCancel={() => setEditingLine(null)}
+        />
       )}
 
+      {/* PDF */}
       <div style={{ display: "none" }}>
         <InvoicePdfTemplate data={data} />
       </div>

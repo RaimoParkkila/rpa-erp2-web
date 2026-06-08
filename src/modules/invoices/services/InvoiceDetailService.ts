@@ -37,7 +37,21 @@ export const InvoiceDetailService = {
       console.error(lineError);
     }
 
-    const safeLines = lines || [];
+    const safeLines = (lines || []).map((l) => ({
+      ...l,
+
+      productname:
+        l.productname_snapshot ??
+        l.productname,
+
+      amount:
+        l.amount_snapshot ??
+        l.amount,
+
+      price:
+        l.price_snapshot ??
+        l.price,
+    }));
 
     // 4. TOTAL
     const total = safeLines.reduce(
