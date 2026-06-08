@@ -1,30 +1,25 @@
 import { supabase } from "../../../services/supabase";
 
 export const invoiceLineService = {
-  async getByInvoiceId(invoiceId: number) {
-    return supabase
-      .from("rpa_invoice_line")
-      .select("*")
-      .eq("rpa_headerofinvoice_id", invoiceId);
-  },
+  async addLine(invoiceId: number, product: any, amount: number, price: number) {
+    const payload = {
+      rpa_headerofinvoice_id: invoiceId,
+      rpa_shop_product_id: product.id,
 
-  async addLine(payload: any) {
-    return supabase
-      .from("rpa_invoice_line")
-      .insert(payload);
-  },
+      productname: product.productname,
+      productname_snapshot: product.productname,
 
-  async updateLine(id: number, payload: any) {
-    return supabase
-      .from("rpa_invoice_line")
-      .update(payload)
-      .eq("id", id);
-  },
+      amount,
+      amount_snapshot: amount,
 
-  async deleteLine(id: number) {
+      price,
+      price_snapshot: price,
+    };
+
     return supabase
       .from("rpa_invoice_line")
-      .delete()
-      .eq("id", id);
+      .insert(payload)
+      .select()
+      .single();
   },
 };
