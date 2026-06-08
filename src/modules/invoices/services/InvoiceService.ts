@@ -1,4 +1,4 @@
-import { supabase } from "../../../services/supabase";
+import { supabase } from "@services/supabase";
 
 const TABLE = "rpaheaderofinvoice";
 const CUSTOMER_TABLE = "rpa_customer";

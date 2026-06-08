@@ -1,87 +1,95 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../../../services/supabase";
+import { useState } from "react";
+import { invoiceLineService } from "../../src/modules/invoices/services/invoiceLineService";
 
-export type InvoiceLineModel = {
+type InvoiceLine = {
   id: number;
   productname: string;
   amount: number;
   price: number;
-  total: number;
 };
 
-const normalize = (l: any): InvoiceLineModel => {
-  const amount = Number(l.amount_snapshot ?? l.amount ?? 1);
-  const price = Number(l.price_snapshot ?? l.price ?? 0);
+export function useInvoiceLines(invoiceId: number, products: any[]) {
+  const [lines, setLines] = useState<InvoiceLine[]>([]);
 
-  return {
-    id: l.id,
-    productname: l.productname_snapshot ?? l.productname ?? "",
-    amount,
-    price,
-    total: amount * price,
+  const toNum = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
   };
-};
 
-export const useInvoiceLines = (invoiceId: number) => {
-  const [lines, setLines] = useState<InvoiceLineModel[]>([]);
-  const [loading, setLoading] = useState(false);
+  // ---------------- ADD ----------------
+  const addLine = async (productId: number, amount: number, price: number) => {
+    const selected = products.find((p) => Number(p.id) === Number(productId));
+    if (!selected) return;
 
-  const reload = async () => {
-    if (!invoiceId) return;
+    const tempId = Date.now();
 
-    setLoading(true);
+    const optimistic: InvoiceLine = {
+      id: tempId,
+      productname: selected.productname,
+      amount: toNum(amount),
+      price: toNum(price || selected.price),
+    };
 
-    const { data, error } = await supabase
-      .from("rpa_invoice_line")
-      .select("*")
-      .eq("rpa_headerofinvoice_id", invoiceId);
+    setLines((prev) => [...prev, optimistic]);
 
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      return;
+    try {
+      const res = await invoiceLineService.addLine(
+        invoiceId,
+        selected,
+        optimistic.amount,
+        optimistic.price
+      );
+
+      setLines((prev) =>
+        prev.map((l) =>
+          l.id === tempId ? { ...l, id: res.data.id } : l
+        )
+      );
+    } catch (err) {
+      console.error(err);
+      setLines((prev) => prev.filter((l) => l.id !== tempId));
     }
-
-    setLines((data || []).map(normalize));
-    setLoading(false);
   };
 
-  const addLine = async (payload: any) => {
-    const { error } = await supabase
-      .from("rpa_invoice_line")
-      .insert(payload);
+  // ---------------- UPDATE ----------------
+  const updateLine = async (line: InvoiceLine) => {
+    const backup = lines;
 
-    if (!error) await reload();
+    setLines((prev) =>
+      prev.map((l) => (l.id === line.id ? line : l))
+    );
+
+    try {
+      await invoiceLineService.updateLine(line.id, {
+        productname_snapshot: line.productname,
+        amount_snapshot: toNum(line.amount),
+        price_snapshot: toNum(line.price),
+      });
+    } catch (err) {
+      console.error(err);
+      setLines(backup);
+    }
   };
 
-  const updateLine = async (id: number, payload: any) => {
-    const { error } = await supabase
-      .from("rpa_invoice_line")
-      .update(payload)
-      .eq("id", id);
-
-    if (!error) await reload();
-  };
-
+  // ---------------- DELETE ----------------
   const deleteLine = async (id: number) => {
-    const { error } = await supabase
-      .from("rpa_invoice_line")
-      .delete()
-      .eq("id", id);
+    const backup = lines;
 
-    if (!error) await reload();
+    setLines((prev) => prev.filter((l) => l.id !== id));
+
+    try {
+      await invoiceLineService.deleteLine(id);
+    } catch (err) {
+      console.error(err);
+      setLines(backup);
+    }
   };
-
-  useEffect(() => {
-    reload();
-  }, [invoiceId]);
 
   return {
     lines,
-    loading,
-    reload,
+    setLines,
     addLine,
     updateLine,
     deleteLine,
   };
-};
+}

@@ -1,6 +1,6 @@
 import React from "react";
-import type { Invoice } from "../types/InvoiceTypes";
-import { formatDateES } from "../../../utils/date";
+import type { Invoice } from "@modules/invoices/types/InvoiceTypes";
+import { formatDateES } from "@utils/date";
 
 interface Props {
   invoices: Invoice[];

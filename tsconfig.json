@@ -1,9 +1,17 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "./src",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["*"],
+
+      "@modules/*": ["modules/*"],
+      "@domains/*": ["domains/*"],
+      "@services/*": ["services/*"],
+      "@hooks/*": ["hooks/*"],
+      "@components/*": ["components/*"],
+      "@utils/*": ["utils/*"]
     },
+
     "ignoreDeprecations": "6.0"
   },
   "files": [],

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import type { InvoiceForm } from "../types/InvoiceTypes";
-import type { Customer } from "../types/CustomerTypes";
-import { supabase } from "../../../services/supabase";
+import type { InvoiceForm } from "@modules/invoices/types/InvoiceTypes";
+import type { Customer } from "@modules/invoices/types/CustomerTypes";
+import { supabase } from "@services/supabase";
 
 interface Props {
   isOpen: boolean;

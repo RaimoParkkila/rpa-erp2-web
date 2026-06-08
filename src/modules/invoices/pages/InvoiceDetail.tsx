@@ -4,10 +4,11 @@ import { useParams } from "react-router-dom";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-import InvoicePdfTemplate from "../../../domains/invoices/components/InvoicePdfTemplate";
-import { isInvoiceEditable } from "../../../domains/invoices/invoicePolicy";
-import { invoiceLineService } from "../services/invoiceLineService";
-import { InvoiceDetailService } from "../services/InvoiceDetailService";
+import InvoicePdfTemplate from "@domains/invoices/components/InvoicePdfTemplate";
+import { isInvoiceEditable } from "@domains/invoices/invoicePolicy";
+
+import { invoiceLineService } from "@modules/invoices/services/invoiceLineService";
+import { InvoiceDetailService } from "@modules/invoices/services/InvoiceDetailService";
 
 type InvoiceLine = {
   id: number;

@@ -1,4 +1,4 @@
-import { supabase } from "../../../services/supabase";
+import { supabase } from "@services/supabase";
 
 export const InvoiceDetailService = {
   async getById(id: number) {
