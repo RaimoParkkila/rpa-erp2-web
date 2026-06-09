@@ -93,7 +93,6 @@ export default function InvoiceDetail() {
       console.error("PDF export failed:", err);
     }
   };
-
   useEffect(() => {
     if (!invoiceId) return;
 
@@ -257,7 +256,7 @@ export default function InvoiceDetail() {
       {/* PDF HIDDEN TARGET */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
         <div ref={pdfRef}>
-          <InvoicePdfTemplate data={data} />
+          <InvoicePdfTemplate data={data} lines={lines} />
         </div>
       </div>
     </>

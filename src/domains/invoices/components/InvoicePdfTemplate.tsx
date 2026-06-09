@@ -1,11 +1,7 @@
-import React from "react";
-
-export default function InvoicePdfTemplate({ data }: any) {
-  const lines = data?.lines ?? [];
-
+export default function InvoicePdfTemplate({ data, lines }: any) {
   const subtotal = lines.reduce(
-    (sum: number, l: any) =>
-      sum + Number(l.price || 0) * Number(l.amount || 0),
+    (s: number, l: any) =>
+      s + (l.amount_snapshot * l.price_snapshot),
     0
   );
 
@@ -14,115 +10,84 @@ export default function InvoicePdfTemplate({ data }: any) {
 
   return (
     <div
-      id="invoice-pdf"
       style={{
         width: "210mm",
         minHeight: "297mm",
         padding: "20mm",
-        background: "white",
-        color: "#000",
-        fontFamily: "Arial, sans-serif",
-        boxSizing: "border-box",
+        fontFamily: "Arial",
+        color: "#111",
       }}
     >
       {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <h2 style={{ margin: 0 }}>INVOICE</h2>
-          <p style={{ margin: 0 }}>Invoice #{data?.id}</p>
+      <div style={{ textAlign: "center", marginBottom: 25 }}>
+        <h1 style={{ margin: 0, fontSize: 28, letterSpacing: 2 }}>
+          INVOICE
+        </h1>
+
+        <div style={{ fontSize: 12, marginTop: 6 }}>
+          Invoice #{data.id}
         </div>
 
-        <div style={{ textAlign: "right" }}>
-          <p style={{ margin: 0 }}>
-            <b>Date:</b> {data?.date}
-          </p>
-          <p style={{ margin: 0 }}>
-            <b>Status:</b> {data?.status}
-          </p>
+        <div style={{ fontSize: 12 }}>
+          Date: {data.date}
         </div>
       </div>
 
-      <hr />
-
       {/* CUSTOMER */}
-      <div style={{ marginTop: 20, marginBottom: 20 }}>
-        <h4 style={{ marginBottom: 5 }}>Customer</h4>
-        <p style={{ margin: 0 }}>{data?.customer?.firstname ?? "-"}</p>
+      <div style={{ marginBottom: 20, fontSize: 12 }}>
+        <strong>Customer ID:</strong> {data.rpa_customer_id}
       </div>
 
       {/* TABLE */}
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          marginTop: 10,
-          fontSize: 14,
-        }}
-      >
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
-          <tr style={{ borderBottom: "2px solid #000" }}>
-            <th style={{ textAlign: "left", padding: "10px 0" }}>
-              Product
-            </th>
-            <th style={{ textAlign: "center" }}>Qty</th>
-            <th style={{ textAlign: "right" }}>Price</th>
-            <th style={{ textAlign: "right" }}>Total</th>
+          <tr style={{ borderBottom: "1px solid #ccc" }}>
+            <th align="left">Product</th>
+            <th align="right">Qty</th>
+            <th align="right">Price</th>
+            <th align="right">Total</th>
           </tr>
         </thead>
 
         <tbody>
-          {lines.map((l: any, index: number) => (
-            <tr
-              key={l.id}
-              style={{
-                background: index % 2 === 0 ? "#fafafa" : "white",
-              }}
-            >
-              <td style={{ padding: "10px 0", textAlign: "left" }}>
-                {l.productname}
+          {lines.map((l: any) => (
+            <tr key={l.id}>
+              <td>{l.productname_snapshot}</td>
+              <td align="right">{l.amount_snapshot}</td>
+              <td align="right">
+                {Number(l.price_snapshot).toFixed(2)}
               </td>
-
-              <td style={{ textAlign: "center" }}>
-                {Number(l.amount || 0)}
-              </td>
-
-              <td style={{ textAlign: "right" }}>
-                {Number(l.price || 0).toFixed(2)}
-              </td>
-
-              <td style={{ textAlign: "right", fontWeight: 500 }}>
-                {(Number(l.price || 0) * Number(l.amount || 0)).toFixed(2)}
+              <td align="right">
+                {(l.amount_snapshot * l.price_snapshot).toFixed(2)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* TOTAL */}
+      {/* TOTALS */}
       <div style={{ marginTop: 30, textAlign: "right" }}>
         <div>Subtotal: €{subtotal.toFixed(2)}</div>
         <div>VAT (21%): €{vat.toFixed(2)}</div>
 
-        <h3 style={{ marginTop: 10 }}>
+        <h2 style={{ marginTop: 10 }}>
           Total: €{total.toFixed(2)}
-        </h3>
+        </h2>
       </div>
 
-      {/* FOOTER (FIXED) */}
+      {/* FOOTER */}
       <div
         style={{
-          marginTop: 40,
-          fontSize: 12,
+          position: "absolute",
+          bottom: 20,
+          left: 20,
+          right: 20,
+          fontSize: 10,
+          textAlign: "center",
+          color: "#777",
         }}
       >
-        <hr />
-        <p style={{ marginTop: 10 }}>Thank you for your business</p>
+        Thank you for your business
       </div>
     </div>
   );
