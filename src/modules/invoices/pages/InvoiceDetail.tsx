@@ -11,6 +11,7 @@ import { supabase } from "@services/supabase";
 import AddInvoiceLine from "@components/AddInvoiceLine";
 import { useInvoiceLines } from "../hooks/useInvoiceLines";
 import InvoiceLineEditor from "../components/InvoiceLineEditor";
+import type { InvoiceLine } from "../types/InvoiceLine";
 
 // ---------------- TYPES ----------------
 type Invoice = {
@@ -39,20 +40,32 @@ export default function InvoiceDetail() {
 
   const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
+
   const [products, setProducts] = useState<any[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
 
   // ---------------- LINES ----------------
   const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
+  const [error, setError] = useState("");
 
   // ---------------- HEADER ----------------
   const reloadHeader = async () => {
     if (!invoiceId) return;
 
     setLoading(true);
+    setError("");
+
     try {
       const res = await InvoiceDetailService.getById(invoiceId);
+
+      if (!res) {
+        throw new Error("Invoice not found");
+      }
+
       setData(res);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Failed to load invoice");
     } finally {
       setLoading(false);
     }
@@ -79,22 +92,23 @@ export default function InvoiceDetail() {
   }, []);
 
   // ---------------- EDIT ----------------
-  const openEdit = (l: any) => {
+  const openEdit = (l: InvoiceLine) => {
     console.log("OPEN EDIT RAW LINE:", l);
 
     setEditingLine({
       id: l.id,
-      productname: l.productname,
-      amount: String(l.amount),
-      price: String(l.price),
+      productname: l.productname_snapshot,
+      amount: String(l.amount_snapshot),
+      price: String(l.price_snapshot),
     });
   };
-
   const toNum = (v: any) => Number(v) || 0;
 
   // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
+
+    setError("");
 
     const updated = {
       id: editingLine.id,
@@ -112,24 +126,27 @@ export default function InvoiceDetail() {
 
       setEditingLine(null);
       reloadLines();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || "Failed to update line");
     }
   };
 
   // ---------------- DELETE ----------------
   const handleDeleteLine = async (id: number) => {
+    setError("");
+
     try {
       await invoiceLineService.deleteLine(id);
       reloadLines();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || "Failed to delete line");
     }
   };
-
   // ---------------- CALC ----------------
-  const calcTotal = (l: any) =>
-    Number(l.amount) * Number(l.price);
+  const calcTotal = (l: InvoiceLine) =>
+    Number(l.amount_snapshot) * Number(l.price_snapshot);
 
   const subtotal = lines.reduce((s, l) => s + calcTotal(l), 0);
   const vat = subtotal * 0.21;
@@ -147,7 +164,11 @@ export default function InvoiceDetail() {
         Invoice #{data.id}
         Total: €{total.toFixed(2)}
       </div>
-
+      {error && (
+        <div style={{ color: "red", margin: "10px 0" }}>
+          ⚠ {error}
+        </div>
+      )}
       {/* TABLE */}
       <table style={{ width: "100%" }}>
         <thead>
