@@ -54,8 +54,8 @@ export default function InvoiceTable({
             ID {sortKey === "id" ? (sortAsc ? "▲" : "▼") : ""}
           </th>
 
-          <th onClick={() => handleHeaderClick("customer")}>
-            Customer {sortKey === "customer" ? (sortAsc ? "▲" : "▼") : ""}
+          <th onClick={() => handleHeaderClick("customerName")}>
+            Customer {sortKey === "customerName" ? (sortAsc ? "▲" : "▼") : ""}
           </th>
 
           <th onClick={() => handleHeaderClick("date")}>
@@ -76,11 +76,7 @@ export default function InvoiceTable({
           <tr key={inv.id} style={{ borderBottom: "1px solid #eee" }}>
             <td>{inv.id}</td>
 
-            <td>
-              {typeof inv.customer === "string"
-                ? inv.customer
-                : inv.customer?.firstname ?? "Unknown"}
-            </td>
+            <td>{inv.customerName ?? "Unknown"}</td>
 
             <td>{inv.date ? formatDateES(inv.date) : "-"}</td>
 

@@ -1,4 +1,5 @@
 import { supabase } from "@services/supabase";
+import { recalculateInvoiceTotals } from "../../../core/invoices/recalculateInvoiceTotals";
 
 export const invoiceLineService = {
   // ---------------- ADD LINE ----------------
@@ -37,40 +38,69 @@ export const invoiceLineService = {
   },
 
   // ---------------- UPDATE LINE ----------------
-  async updateLine(id: number, payload: any) {
-    console.log("🔵 UPDATE INPUT:", { id, payload });
+  async update(id: number, invoice: any) {
+    console.log("🧾 UPDATE INPUT:", invoice);
+
+    const { data: existing, error: fetchError } = await supabase
+      .from("rpaheaderofinvoice")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      console.error("FETCH ERROR:", fetchError);
+      return null;
+    }
+
+    // 🔥 ALWAYS TRUST DB FIRST
+    const safeSnapshot = existing?.snapshot ?? {
+      lines: [],
+      totals: {
+        subtotal: existing?.subtotal ?? 0,
+        tax: existing?.tax ?? 0,
+        total: existing?.total ?? 0,
+      },
+    };
+
+    const safeLines = safeSnapshot.lines ?? [];
+
+    console.log("📦 SAFE LINES:", safeLines);
+
+    const totals =
+      safeLines.length > 0
+        ? recalculateInvoiceTotals(safeLines)
+        : safeSnapshot.totals;
+
+    const payload = {
+      status: invoice.status ?? existing.status,
+      rpa_customer_id:
+        invoice.rpa_customer_id ?? existing.rpa_customer_id,
+
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      total: totals.total,
+
+      snapshot: {
+        lines: safeLines,
+        totals,
+      },
+    };
+
+    console.log("📤 FINAL UPDATE PAYLOAD:", payload);
 
     const { data, error } = await supabase
-      .from("rpa_invoice_line")
-      .update({
-        productname_snapshot: payload.productname_snapshot,
-        amount_snapshot: payload.amount_snapshot,
-        price_snapshot: payload.price_snapshot,
-      })
+      .from("rpaheaderofinvoice")
+      .update(payload)
       .eq("id", id)
       .select()
       .single();
 
-    console.log("🟢 UPDATE RESPONSE DATA:", data);
-    console.log("🔴 UPDATE ERROR:", error);
+    if (error) {
+      console.error("UPDATE ERROR:", error);
+      return null;
+    }
 
-    return { data, error };
-  },
-  // ---------------- DELETE LINE ----------------
-  async deleteLine(id: number) {
-    console.log("🟥 DELETE CALLED WITH ID:", id);
-
-    const { data, error, status, statusText } = await supabase
-      .from("rpa_invoice_line")
-      .delete()
-      .eq("id", id)
-      .select();
-
-    console.log("🟨 DELETE RESPONSE DATA:", data);
-    console.log("🟨 STATUS:", status, statusText);
-    console.log("🟨 ERROR:", error);
-
-    return { data, error };
+    return data;
   },
   // ---------------- GET BY INVOICE ----------------
   async getByInvoiceId(invoiceId: number) {

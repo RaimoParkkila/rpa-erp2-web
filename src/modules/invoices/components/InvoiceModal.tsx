@@ -17,18 +17,21 @@ export default function InvoiceModal({
   initialData,
 }: Props) {
   const [visible, setVisible] = useState(false);
+
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerId, setCustomerId] = useState<string>("");
+  const [customerId, setCustomerId] = useState("");
   const [date, setDate] = useState("");
   const [status, setStatus] =
     useState<"Paid" | "Pending" | "Overdue">("Pending");
 
-  // DEBUG LOG
+  const [total, setTotal] = useState<number>(0);
+
+  // ---------------- DEBUG ----------------
   useEffect(() => {
     console.log("INVOICE MODAL initialData:", initialData);
   }, [initialData]);
 
-  // FETCH CUSTOMERS
+  // ---------------- FETCH CUSTOMERS ----------------
   useEffect(() => {
     const fetchCustomers = async () => {
       const { data, error } = await supabase
@@ -36,36 +39,45 @@ export default function InvoiceModal({
         .select("id, firstname")
         .order("id");
 
-      if (!error && data) {
-        setCustomers(data);
-      } else {
-        console.error(error);
-      }
+      if (!error && data) setCustomers(data);
+      else console.error(error);
     };
 
     fetchCustomers();
   }, []);
 
-
-
-  // SYNC EDIT DATA
+  // ---------------- SYNC INITIAL DATA ----------------
   useEffect(() => {
-    if (initialData) {
-      setCustomerId(
-        initialData.rpa_customer_id
-          ? String(initialData.rpa_customer_id)
-          : ""
-      );
-      setDate(initialData.date ?? "");
-      setStatus(initialData.status ?? "Pending");
-    } else {
+    if (!initialData) {
       setCustomerId("");
       setDate("");
       setStatus("Pending");
+      setTotal(0);
+      return;
     }
+
+    setCustomerId(
+      initialData.rpa_customer_id ? String(initialData.rpa_customer_id) : ""
+    );
+
+    // 🔥 FIX: date fallback (Supabase timestamp vs date-only)
+    const safeDate = initialData.date
+      ? String(initialData.date).substring(0, 10)
+      : "";
+
+    setDate(safeDate);
+
+    setStatus(initialData.status ?? "Pending");
+
+    // 🔥 FIX: DO NOT overwrite real totals with undefined/null
+    setTotal(
+      (initialData as any).total ??
+      (initialData as any).subtotal ??
+      0
+    );
   }, [initialData]);
 
-  // OPEN/CLOSE
+  // ---------------- OPEN / CLOSE ----------------
   useEffect(() => {
     if (isOpen) {
       setVisible(true);
@@ -77,7 +89,7 @@ export default function InvoiceModal({
     }
   }, [isOpen]);
 
-  // ESC
+  // ---------------- ESC ----------------
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -89,16 +101,18 @@ export default function InvoiceModal({
 
   if (!visible) return null;
 
+  // ---------------- SAVE ----------------
   const handleSave = () => {
-    onSave({
+    const fullInvoice = {
+      ...(initialData as any),
       rpa_customer_id: Number(customerId),
       date,
       status,
-    });
+    };
 
+    onSave(fullInvoice);
     onClose();
   };
-
   return (
     <div
       onClick={onClose}
@@ -122,38 +136,14 @@ export default function InvoiceModal({
       >
         {initialData ? "Edit Invoice" : "Add Invoice"}
 
-        {/* 🔥 DEBUG PANEL */}
-        <pre
-          style={{
-            fontSize: 11,
-            background: "#111",
-            color: "#0f0",
-            padding: 10,
-            marginTop: 10,
-            borderRadius: 6,
-            maxHeight: 150,
-            overflow: "auto",
-          }}
-        >
-          {JSON.stringify(
-            {
-              isOpen,
-              visible,
-              customerId,
-              initialData,
-            },
-            null,
-            2
-          )}
+        {/* DEBUG */}
+        <pre style={{ fontSize: 11, background: "#111", color: "#0f0", padding: 10 }}>
+          {JSON.stringify({ customerId, date, status, total, initialData }, null, 2)}
         </pre>
 
-        {/* CUSTOMER DROPDOWN */}
-        <select
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-        >
+        {/* CUSTOMER */}
+        <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
           <option value="">Select customer</option>
-
           {customers.map((c) => (
             <option key={c.id} value={String(c.id)}>
               {c.firstname}
@@ -163,22 +153,22 @@ export default function InvoiceModal({
 
         <br />
 
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        {/* DATE */}
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
 
         <br />
 
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value as any)}
-        >
+        {/* STATUS */}
+        <select value={status} onChange={(e) => setStatus(e.target.value as any)}>
           <option value="Paid">Paid</option>
           <option value="Pending">Pending</option>
           <option value="Overdue">Overdue</option>
         </select>
+
+        {/* TOTAL (READ ONLY DEBUG) */}
+        <div style={{ marginTop: 10 }}>
+          Total: <b>{total}</b>
+        </div>
 
         <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
           <button onClick={handleSave}>Save</button>
