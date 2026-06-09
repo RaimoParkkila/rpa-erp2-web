@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 
 import InvoicePdfTemplate from "@domains/invoices/components/InvoicePdfTemplate";
@@ -6,12 +6,15 @@ import { isInvoiceEditable } from "@domains/invoices/invoicePolicy";
 
 import { invoiceLineService } from "@modules/invoices/services/invoiceLineService";
 import { InvoiceDetailService } from "@modules/invoices/services/InvoiceDetailService";
-import { supabase } from "@services/supabase";
 
+import { supabase } from "@services/supabase";
 import AddInvoiceLine from "@components/AddInvoiceLine";
 import { useInvoiceLines } from "../hooks/useInvoiceLines";
 import InvoiceLineEditor from "../components/InvoiceLineEditor";
 import type { InvoiceLine } from "../types/InvoiceLine";
+
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // ---------------- TYPES ----------------
 type Invoice = {
@@ -28,8 +31,6 @@ type EditingLine = {
   price: string;
 };
 
-
-
 // ---------------- COMPONENT ----------------
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -40,13 +41,16 @@ export default function InvoiceDetail() {
 
   const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
-
   const [products, setProducts] = useState<any[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
 
+  const [error, setError] = useState("");
+
+  // PDF TARGET
+  const pdfRef = useRef<HTMLDivElement>(null);
+
   // ---------------- LINES ----------------
   const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
-  const [error, setError] = useState("");
 
   // ---------------- HEADER ----------------
   const reloadHeader = async () => {
@@ -57,10 +61,7 @@ export default function InvoiceDetail() {
 
     try {
       const res = await InvoiceDetailService.getById(invoiceId);
-
-      if (!res) {
-        throw new Error("Invoice not found");
-      }
+      if (!res) throw new Error("Invoice not found");
 
       setData(res);
     } catch (err: any) {
@@ -68,6 +69,28 @@ export default function InvoiceDetail() {
       setError(err?.message || "Failed to load invoice");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ---------------- PDF EXPORT ----------------
+  const handleExportPdf = async () => {
+    if (!pdfRef.current || !data) return;
+
+    try {
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+
+      pdf.save(`invoice-${data.id}.pdf`);
+    } catch (err) {
+      console.error("PDF export failed:", err);
     }
   };
 
@@ -93,8 +116,6 @@ export default function InvoiceDetail() {
 
   // ---------------- EDIT ----------------
   const openEdit = (l: InvoiceLine) => {
-    console.log("OPEN EDIT RAW LINE:", l);
-
     setEditingLine({
       id: l.id,
       productname: l.productname_snapshot,
@@ -102,6 +123,7 @@ export default function InvoiceDetail() {
       price: String(l.price_snapshot),
     });
   };
+
   const toNum = (v: any) => Number(v) || 0;
 
   // ---------------- UPDATE ----------------
@@ -144,6 +166,7 @@ export default function InvoiceDetail() {
       setError(err?.message || "Failed to delete line");
     }
   };
+
   // ---------------- CALC ----------------
   const calcTotal = (l: InvoiceLine) =>
     Number(l.amount_snapshot) * Number(l.price_snapshot);
@@ -160,15 +183,27 @@ export default function InvoiceDetail() {
 
   return (
     <>
+      {/* HEADER + PDF BUTTON */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        Invoice #{data.id}
-        Total: €{total.toFixed(2)}
+        <div>
+          Invoice #{data.id}
+          <br />
+          Date: {data.date}
+        </div>
+
+        <div>
+          Total: €{total.toFixed(2)}
+          <br />
+          <button onClick={handleExportPdf}>Export PDF</button>
+        </div>
       </div>
+
       {error && (
         <div style={{ color: "red", margin: "10px 0" }}>
           ⚠ {error}
         </div>
       )}
+
       {/* TABLE */}
       <table style={{ width: "100%" }}>
         <thead>
@@ -185,15 +220,9 @@ export default function InvoiceDetail() {
           {lines.map((l) => (
             <tr key={l.id}>
               <td>{l.productname_snapshot}</td>
-
               <td>{l.amount_snapshot}</td>
-
               <td>{Number(l.price_snapshot).toFixed(2)}</td>
-
-              <td>
-                {(l.amount_snapshot * l.price_snapshot).toFixed(2)}
-              </td>
-
+              <td>{calcTotal(l).toFixed(2)}</td>
               <td>
                 <button onClick={() => openEdit(l)}>Edit</button>
                 <button onClick={() => handleDeleteLine(l.id)}>
@@ -225,9 +254,11 @@ export default function InvoiceDetail() {
         />
       )}
 
-      {/* PDF */}
-      <div style={{ display: "none" }}>
-        <InvoicePdfTemplate data={data} />
+      {/* PDF HIDDEN TARGET */}
+      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+        <div ref={pdfRef}>
+          <InvoicePdfTemplate data={data} />
+        </div>
       </div>
     </>
   );
