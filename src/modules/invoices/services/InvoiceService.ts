@@ -1,11 +1,12 @@
 import { supabase } from "@services/supabase";
+import { recalculateInvoiceTotals } from "../../../core/invoices/recalculateInvoiceTotals";
+import { validateInvoiceSnapshot } from "../utils/validateInvoiceSnapshot";
 
 const TABLE = "rpaheaderofinvoice";
 const CUSTOMER_TABLE = "rpa_customer";
 
 export const InvoiceService = {
   async getAll() {
-    // 1. invoices
     const { data: invoices, error } = await supabase
       .from(TABLE)
       .select("id, status, date, rpa_customer_id")
@@ -16,28 +17,51 @@ export const InvoiceService = {
       return [];
     }
 
-    // 2. customers (separate query)
     const { data: customers } = await supabase
       .from(CUSTOMER_TABLE)
       .select("id, firstname");
 
-    const customerMap: Record<number, string> = {};
+    const customerMap: Record<string, string> = {};
 
     (customers || []).forEach((c: any) => {
-      customerMap[c.id] = c.firstname;
+      customerMap[String(c.id)] = c.firstname;
     });
 
-    // 3. map ERP DTO
     return (invoices || []).map((inv: any) => ({
       id: inv.id,
       status: inv.status,
       date: inv.date,
-      customer: customerMap[inv.rpa_customer_id] ?? null,
-      total: 0, // (voit myöhemmin laskea linesistä)
+
+      // 🔥 FIX: always resolved name, not raw id
+      customerId: inv.rpa_customer_id,
+      customer: customerMap[String(inv.rpa_customer_id)] ?? null,
+      customerName: customerMap[String(inv.rpa_customer_id)] ?? null,
+
+      total: inv.total ?? 0,
     }));
   },
 
-  async create(payload: any) {
+  // 🧩 SAFE CREATE (snapshot + validation + totals)
+  async create(invoice: any) {
+    const isValid = validateInvoiceSnapshot(invoice.lines);
+
+    if (!isValid) {
+      throw new Error("Invalid invoice snapshot");
+    }
+
+    const totals = recalculateInvoiceTotals(invoice.lines);
+
+    const payload = {
+      ...invoice,
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      total: totals.total,
+      snapshot: {
+        lines: invoice.lines,
+        totals,
+      },
+    };
+
     const { data, error } = await supabase
       .from(TABLE)
       .insert(payload)
@@ -52,7 +76,27 @@ export const InvoiceService = {
     return data;
   },
 
-  async update(id: number, payload: any) {
+  // 🧩 SAFE UPDATE
+  async update(id: number, invoice: any) {
+    const isValid = validateInvoiceSnapshot(invoice.lines);
+
+    if (!isValid) {
+      throw new Error("Invalid invoice snapshot");
+    }
+
+    const totals = recalculateInvoiceTotals(invoice.lines);
+
+    const payload = {
+      ...invoice,
+      subtotal: totals.subtotal,
+      tax: totals.tax,
+      total: totals.total,
+      snapshot: {
+        lines: invoice.lines,
+        totals,
+      },
+    };
+
     const { data, error } = await supabase
       .from(TABLE)
       .update(payload)
@@ -75,6 +119,7 @@ export const InvoiceService = {
       .eq("id", id);
 
     if (error) console.error(error);
+
     return true;
   },
 };

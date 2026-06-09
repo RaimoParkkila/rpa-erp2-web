@@ -22,13 +22,7 @@ type Invoice = {
   status: string;
   date: string;
   rpa_customer_id: number;
-};
-
-type EditingLine = {
-  id: number;
-  productname: string;
-  amount: string;
-  price: string;
+  customerName?: string; // 🔥 FIX: tärkeä PDF:lle
 };
 
 // ---------------- COMPONENT ----------------
@@ -36,18 +30,17 @@ export default function InvoiceDetail() {
   const { id } = useParams();
   const invoiceId = Number(id);
 
-  const [data, setData] = useState<Invoice | null>(null);
+  const [invoice, setInvoice] = useState<Invoice | null>(null); // 🔥 FIX
   const [loading, setLoading] = useState(true);
 
-  const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
+  const [editingLine, setEditingLine] = useState<any>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
 
   const [error, setError] = useState("");
 
-  // PDF TARGET
-  const pdfRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef(null);
 
   // ---------------- LINES ----------------
   const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
@@ -61,9 +54,10 @@ export default function InvoiceDetail() {
 
     try {
       const res = await InvoiceDetailService.getById(invoiceId);
+
       if (!res) throw new Error("Invoice not found");
 
-      setData(res);
+      setInvoice(res); // 🔥 FIX
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Failed to load invoice");
@@ -74,21 +68,39 @@ export default function InvoiceDetail() {
 
   // ---------------- PDF EXPORT ----------------
   const handleExportPdf = async () => {
-    if (!pdfRef.current || !data) return;
+    if (!pdfRef.current || !invoice) return;
 
     try {
       const canvas = await html2canvas(pdfRef.current, {
         scale: 2,
         useCORS: true,
+        scrollY: -window.scrollY,
       });
 
       const imgData = canvas.toDataURL("image/png");
 
       const pdf = new jsPDF("p", "mm", "a4");
 
-      pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+      const pageWidth = 210;
+      const pageHeight = 297;
 
-      pdf.save(`invoice-${data.id}.pdf`);
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`invoice-${invoice.id}.pdf`);
     } catch (err) {
       console.error("PDF export failed:", err);
     }
@@ -125,7 +137,6 @@ export default function InvoiceDetail() {
 
   const toNum = (v: any) => Number(v) || 0;
 
-  // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
 
@@ -153,7 +164,6 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ---------------- DELETE ----------------
   const handleDeleteLine = async (id: number) => {
     setError("");
 
@@ -174,20 +184,23 @@ export default function InvoiceDetail() {
   const vat = subtotal * 0.21;
   const total = subtotal + vat;
 
-  const isDraft = isInvoiceEditable(data?.status);
+  const isDraft = isInvoiceEditable(invoice?.status);
 
   // ---------------- UI ----------------
   if (loading) return <>Loading...</>;
-  if (!data) return <>No invoice found</>;
+  if (!invoice) return <>No invoice found</>;
 
   return (
     <>
-      {/* HEADER + PDF BUTTON */}
+      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
-          Invoice #{data.id}
+          Invoice #{invoice.id}
           <br />
-          Date: {data.date}
+          Date: {invoice.date}
+          <br />
+          {/* 🔥 FIX: customerName */}
+          Customer: {invoice.customerName ?? "Unknown"}
         </div>
 
         <div>
@@ -197,11 +210,7 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      {error && (
-        <div style={{ color: "red", margin: "10px 0" }}>
-          ⚠ {error}
-        </div>
-      )}
+      {error && <div style={{ color: "red" }}>⚠ {error}</div>}
 
       {/* TABLE */}
       <table style={{ width: "100%" }}>
@@ -253,10 +262,17 @@ export default function InvoiceDetail() {
         />
       )}
 
-      {/* PDF HIDDEN TARGET */}
+      {/* PDF TARGET */}
       <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div ref={pdfRef}>
-          <InvoicePdfTemplate data={data} lines={lines} />
+        <div
+          ref={pdfRef}
+          style={{
+            width: "210mm",
+            minHeight: "297mm",
+            background: "white",
+          }}
+        >
+          <InvoicePdfTemplate data={invoice} lines={lines} />
         </div>
       </div>
     </>

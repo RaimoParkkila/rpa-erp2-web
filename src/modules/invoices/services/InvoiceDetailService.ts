@@ -14,17 +14,17 @@ export const InvoiceDetailService = {
       return null;
     }
 
-    // 2. CUSTOMER
-    let customer = null;
+    // 2. CUSTOMER (safe + direct mapping)
+    let customerName: string | null = null;
 
     if (invoice.rpa_customer_id) {
-      const { data } = await supabase
+      const { data: customer } = await supabase
         .from("rpa_customer")
-        .select("id, firstname")
+        .select("firstname")
         .eq("id", invoice.rpa_customer_id)
         .single();
 
-      customer = data;
+      customerName = customer?.firstname ?? null;
     }
 
     // 3. LINES
@@ -41,21 +41,20 @@ export const InvoiceDetailService = {
       ...l,
 
       productname:
-        l.productname_snapshot ??
-        l.productname,
+        l.productname_snapshot ?? l.productname,
 
       amount:
-        l.amount_snapshot ??
-        l.amount,
+        l.amount_snapshot ?? l.amount,
 
       price:
-        l.price_snapshot ??
-        l.price,
+        l.price_snapshot ?? l.price,
     }));
 
     // 4. TOTAL
     const total = safeLines.reduce(
-      (sum, l) => sum + (l.price || 0) * (l.amount || 0),
+      (sum, l) =>
+        sum +
+        (Number(l.price || 0) * Number(l.amount || 0)),
       0
     );
 
@@ -63,13 +62,13 @@ export const InvoiceDetailService = {
     return {
       id: invoice.id,
       status: invoice.status,
+      date: invoice.date,
 
       rpa_customer_id: invoice.rpa_customer_id,
 
-      // 🔥 FIX: tämä oli puuttuva ja aiheutti undefined bugit
-      date: invoice.date,
+      // 🔥 FIX: tämä on nyt se mitä PDF käyttää
+      customerName,
 
-      customer,
       lines: safeLines,
       total,
     };
