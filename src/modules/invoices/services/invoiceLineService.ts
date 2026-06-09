@@ -58,19 +58,20 @@ export const invoiceLineService = {
   },
   // ---------------- DELETE LINE ----------------
   async deleteLine(id: number) {
-    const { error } = await supabase
+    console.log("🟥 DELETE CALLED WITH ID:", id);
+
+    const { data, error, status, statusText } = await supabase
       .from("rpa_invoice_line")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select();
 
-    if (error) {
-      console.error("DELETE LINE ERROR:", error);
-      throw error;
-    }
+    console.log("🟨 DELETE RESPONSE DATA:", data);
+    console.log("🟨 STATUS:", status, statusText);
+    console.log("🟨 ERROR:", error);
 
-    return true;
+    return { data, error };
   },
-
   // ---------------- GET BY INVOICE ----------------
   async getByInvoiceId(invoiceId: number) {
     const { data, error } = await supabase

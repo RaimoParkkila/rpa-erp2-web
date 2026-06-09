@@ -9,7 +9,16 @@ export const InvoiceService = {
   async getAll() {
     const { data: invoices, error } = await supabase
       .from(TABLE)
-      .select("id, status, date, rpa_customer_id")
+      .select(`
+        id,
+        status,
+        date,
+        rpa_customer_id,
+        subtotal,
+        tax,
+        total,
+        snapshot
+      `)
       .order("id", { ascending: false });
 
     if (error) {
@@ -27,29 +36,51 @@ export const InvoiceService = {
       customerMap[String(c.id)] = c.firstname;
     });
 
-    return (invoices || []).map((inv: any) => ({
-      id: inv.id,
-      status: inv.status,
-      date: inv.date,
+    return (invoices || []).map((inv: any) => {
+      const snapshot = inv.snapshot;
+      const snapshotTotals = snapshot?.totals;
 
-      // 🔥 FIX: always resolved name, not raw id
-      customerId: inv.rpa_customer_id,
-      customer: customerMap[String(inv.rpa_customer_id)] ?? null,
-      customerName: customerMap[String(inv.rpa_customer_id)] ?? null,
+      return {
+        id: inv.id,
+        status: inv.status,
+        date: inv.date,
 
-      total: inv.total ?? 0,
-    }));
+        rpa_customer_id: inv.rpa_customer_id,
+
+        // 🔥 SAFE CUSTOMER RESOLVE
+        customerName:
+          customerMap[String(inv.rpa_customer_id)] || "Unknown customer",
+
+        // 🔥 FINAL ROBUST FALLBACK CHAIN
+        subtotal:
+          inv.subtotal ??
+          snapshotTotals?.subtotal ??
+          0,
+
+        tax:
+          inv.tax ??
+          snapshotTotals?.tax ??
+          0,
+
+        total:
+          inv.total ??
+          snapshotTotals?.total ??
+          0,
+      };
+    });
   },
 
-  // 🧩 SAFE CREATE (snapshot + validation + totals)
+  // 🧩 SAFE CREATE
   async create(invoice: any) {
-    const isValid = validateInvoiceSnapshot(invoice.lines);
+    const safeLines = invoice?.lines ?? [];
+
+    const isValid = validateInvoiceSnapshot(safeLines);
 
     if (!isValid) {
       throw new Error("Invalid invoice snapshot");
     }
 
-    const totals = recalculateInvoiceTotals(invoice.lines);
+    const totals = recalculateInvoiceTotals(safeLines);
 
     const payload = {
       ...invoice,
@@ -57,7 +88,7 @@ export const InvoiceService = {
       tax: totals.tax,
       total: totals.total,
       snapshot: {
-        lines: invoice.lines,
+        lines: safeLines,
         totals,
       },
     };
@@ -69,7 +100,7 @@ export const InvoiceService = {
       .single();
 
     if (error) {
-      console.error(error);
+      console.error("CREATE ERROR:", error);
       return null;
     }
 
@@ -78,13 +109,15 @@ export const InvoiceService = {
 
   // 🧩 SAFE UPDATE
   async update(id: number, invoice: any) {
-    const isValid = validateInvoiceSnapshot(invoice.lines);
+    const safeLines = invoice?.lines ?? [];
+
+    const isValid = validateInvoiceSnapshot(safeLines);
 
     if (!isValid) {
       throw new Error("Invalid invoice snapshot");
     }
 
-    const totals = recalculateInvoiceTotals(invoice.lines);
+    const totals = recalculateInvoiceTotals(safeLines);
 
     const payload = {
       ...invoice,
@@ -92,7 +125,7 @@ export const InvoiceService = {
       tax: totals.tax,
       total: totals.total,
       snapshot: {
-        lines: invoice.lines,
+        lines: safeLines,
         totals,
       },
     };
@@ -105,21 +138,43 @@ export const InvoiceService = {
       .single();
 
     if (error) {
-      console.error(error);
+      console.error("UPDATE ERROR:", error);
       return null;
     }
 
     return data;
   },
 
-  async remove(id: number) {
-    const { error } = await supabase
-      .from(TABLE)
-      .delete()
-      .eq("id", id);
+async remove(id: number) {
+  console.log("🧨 DELETE INVOICE START:", id);
 
-    if (error) console.error(error);
+  // 1. POISTA RIVIT ENSIN (tärkein fix)
+  const { error: lineError } = await supabase
+    .from("rpa_invoice_line")
+    .delete()
+    .eq("rpa_headerofinvoice_id", id);
 
-    return true;
-  },
+  if (lineError) {
+    console.error("❌ LINE DELETE ERROR:", lineError);
+    return false;
+  }
+
+  console.log("✅ LINES DELETED");
+
+  // 2. POISTA HEADER
+  const { data, error } = await supabase
+    .from("rpaheaderofinvoice")
+    .delete()
+    .eq("id", id)
+    .select();
+
+  console.log("🟢 HEADER DELETE RESULT:", data);
+
+  if (error) {
+    console.error("❌ HEADER DELETE ERROR:", error);
+    return false;
+  }
+
+  return true;
+}
 };

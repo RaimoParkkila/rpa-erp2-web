@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import { supabase } from "@services/supabase";
 import { useNavigate } from "react-router-dom";
 
@@ -33,9 +32,6 @@ export default function Shop() {
 
     const [createdInvoiceId, setCreatedInvoiceId] = useState<number | null>(null);
     const [showSuccess, setShowSuccess] = useState(false);
-
-    const [undoItem, setUndoItem] = useState<CartItem | null>(null);
-    const [toast, setToast] = useState<string | null>(null);
 
     const navigate = useNavigate();
 
@@ -113,46 +109,24 @@ export default function Shop() {
         });
     }
 
-    function removeAll(productId: number) {
-        setCart(prev => {
-            const removed = prev.find(p => p.id === productId);
-            const updated = prev.filter(p => p.id !== productId);
+    // ---------------- TOTAL ----------------
 
-            if (removed) {
-                setUndoItem(removed);
-                setToast("Removed from cart");
+    const total = cart.reduce(
+        (s, i) => s + Number(i.price) * Number(i.quantity),
+        0
+    );
 
-                setTimeout(() => {
-                    setUndoItem(null);
-                    setToast(null);
-                }, 5000);
-            }
-
-            syncCart(updated);
-            return updated;
-        });
-    }
-
-    function undoRemove() {
-        if (!undoItem) return;
-
-        setCart(prev => {
-            const updated = [...prev, undoItem];
-            syncCart(updated);
-            return updated;
-        });
-
-        setUndoItem(null);
-        setToast(null);
-    }
-
-    const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-
-    // ---------------- INVOICE ----------------
+    // ---------------- CREATE INVOICE ----------------
 
     async function createInvoice() {
-        if (!selectedCustomer) return;
+        if (!selectedCustomer || cart.length === 0) {
+            console.warn("CREATE CANCELLED");
+            return;
+        }
 
+        console.log("🧾 CART:", cart);
+
+        // 1. CREATE HEADER
         const { data: invoice, error } = await supabase
             .from("rpaheaderofinvoice")
             .insert({
@@ -162,24 +136,76 @@ export default function Shop() {
             .select()
             .single();
 
-        if (error || !invoice) return;
+        if (error || !invoice) {
+            console.error("CREATE ERROR:", error);
+            return;
+        }
 
+        console.log("✅ INVOICE:", invoice);
+
+        // 2. LINES (SNAPSHOT FORMAT)
         const lines = cart.map(item => ({
-            productname: item.productname,
-            price: item.price,
-            amount: item.quantity,
+            productname_snapshot: item.productname,
+            price_snapshot: Number(item.price),
+            amount_snapshot: Number(item.quantity),
             rpa_shop_product_id: item.id,
             rpa_headerofinvoice_id: invoice.id,
         }));
 
-        await supabase.from("rpa_invoice_line").insert(lines);
+        // 3. TOTAL CALC
+        const subtotal = lines.reduce(
+            (s, l) => s + l.price_snapshot * l.amount_snapshot,
+            0
+        );
 
+        const tax = subtotal * 0.21;
+        const total = subtotal + tax;
+
+        console.log("💰 DEBUG TOTAL:", total);
+
+        // 4. INSERT LINES
+        const { error: lineError } = await supabase
+            .from("rpa_invoice_line")
+            .insert(lines);
+
+        if (lineError) {
+            console.error("LINE ERROR:", lineError);
+            return;
+        }
+
+        console.log("✅ LINES OK");
+
+        // 5. 🔥 CRITICAL FIX: UPDATE HEADER TOTALS
+        const { error: updateError } = await supabase
+            .from("rpaheaderofinvoice")
+            .update({
+                subtotal,
+                tax,
+                total,
+                snapshot: {
+                    lines,
+                    totals: {
+                        subtotal,
+                        tax,
+                        total,
+                    }
+                }
+            })
+            .eq("id", invoice.id);
+
+        if (updateError) {
+            console.error("UPDATE HEADER ERROR:", updateError);
+            return;
+        }
+
+        console.log("✅ HEADER UPDATED");
+
+        // 6. RESET UI
         syncCart([]);
         setCreatedInvoiceId(invoice.id);
         setShowSuccess(true);
     }
-
-    // ---------------- UI ----------------
+    // ---------------- SUCCESS SCREEN ----------------
 
     if (showSuccess && createdInvoiceId) {
         return (
@@ -198,103 +224,62 @@ export default function Shop() {
         );
     }
 
+    // ---------------- UI ----------------
+
     return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 380px",
-                gap: "20px",
-                padding: "20px",
-                alignItems: "start",
-            }}
-        >
+        <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 380px",
+            gap: 20,
+            padding: 20
+        }}>
 
-            {/* LEFT PRODUCTS */}
-            <div style={{ flex: 3 }}>
-                <div
-                    style={{
-                        marginBottom: 16,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 4,
-                    }}
-                >
-                    <h1 style={{ margin: 0, lineHeight: 1.2 }}>
-                        Shop
-                    </h1>
-
-                    <div style={{ opacity: 0.6, fontSize: 12 }}>
-                        Browse products & build your cart
-                    </div>
-                </div>
-
+            {/* PRODUCTS */}
+            <div>
                 {loading && <p>Loading...</p>}
 
-                {!loading && (
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-                        gap: 12,
+                {products.map(p => (
+                    <div key={p.id} style={{
+                        background: "#1e1e1e",
+                        color: "white",
+                        padding: 12,
+                        borderRadius: 8,
+                        marginBottom: 10
                     }}>
-                        {products.map(p => (
-                            <div
-                                key={p.id}
-                                onClick={() => navigate(`/shop/${p.id}`)}
+                        {p.image_url && (
+                            <img
+                                src={p.image_url}
                                 style={{
-                                    background: "#1e1e1e",
-                                    color: "white",
-                                    padding: 12,
+                                    width: "100%",
+                                    height: 140,
+                                    objectFit: "cover",
                                     borderRadius: 8,
-                                    border: "1px solid #333",
-                                    cursor: "pointer",
+                                    marginBottom: 8
                                 }}
-                            >
-                                {p.image_url && (
-                                    <img
-                                        src={p.image_url}
-                                        style={{
-                                            width: "100%",
-                                            height: 140,
-                                            objectFit: "cover",
-                                            borderRadius: 8,
-                                        }}
-                                    />
-                                )}
+                            />
+                        )}
 
-                                <h3>{p.productname}</h3>
-                                <div>{p.brand}</div>
-                                <div>{p.price} €</div>
+                        <h3>{p.productname}</h3>
+                        <div>{p.brand}</div>
+                        <div>{p.price} €</div>
 
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        addToCart(p);
-                                    }}
-                                >
-                                    Add
-                                </button>
-                            </div>
-                        ))}
+                        <button onClick={() => addToCart(p)}>
+                            Add to cart
+                        </button>
                     </div>
-                )}
+                ))}
             </div>
 
             {/* CART */}
-            <div style={{
-                flex: 1,
-                background: "#111",
-                color: "white",
-                padding: 12,
-                borderRadius: 8,
-                position: "sticky",
-                top: 20
-            }}>
+            <div>
                 <h2>Cart</h2>
 
                 <select
                     value={selectedCustomer ?? ""}
                     onChange={(e) =>
-                        setSelectedCustomer(e.target.value ? Number(e.target.value) : null)
+                        setSelectedCustomer(
+                            e.target.value ? Number(e.target.value) : null
+                        )
                     }
                 >
                     <option value="">-- customer --</option>
@@ -306,122 +291,16 @@ export default function Shop() {
                 </select>
 
                 {cart.map(item => (
-                    <div
-                        key={item.id}
-                        style={{
-                            marginBottom: 10,
-                            padding: 10,
-                            borderRadius: 10,
-                            border: "1px solid #222",
-                            background: "#1a1a1a",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 10,
-                        }}
-                    >
-                        {/* LEFT INFO */}
-                        <div>
-                            <div style={{ fontWeight: 600 }}>
-                                {item.productname}
-                            </div>
-
-                            <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                €{item.price} × {item.quantity}
-                            </div>
-                        </div>
-
-                        {/* RIGHT CONTROLS */}
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                padding: "4px 8px",
-                                borderRadius: 10,
-                                border: "1px solid #2a2a2a",
-                                background: "#111",
-                            }}
-                        >
-                            {/* MINUS */}
-                            <button
-                                onClick={() => removeOne(item.id)}
-                                style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: 8,
-                                    border: "1px solid #333",
-                                    background: "#1e1e1e",
-                                    color: "white",
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                }}
-                            >
-                                −
-                            </button>
-
-                            {/* QUANTITY */}
-                            <span
-                                style={{
-                                    minWidth: 24,
-                                    textAlign: "center",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {item.quantity}
-                            </span>
-
-                            {/* PLUS */}
-                            <button
-                                onClick={() => {
-                                    const p = products.find(x => x.id === item.id);
-                                    if (p) addToCart(p);
-                                }}
-                                style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: 8,
-                                    border: "1px solid #333",
-                                    background: "#00ffcc",
-                                    color: "#000",
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                }}
-                            >
-                                +
-                            </button>
-                        </div>
-
-                        {/* DELETE */}
-                        <button
-                            onClick={() => removeAll(item.id)}
-                            style={{
-                                width: 34,
-                                height: 34,
-                                borderRadius: 8,
-                                border: "1px solid #333",
-                                background: "#2a1e1e",
-                                color: "#ff4d4d",
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                            }}
-                        >
-                            🗑
-                        </button>
+                    <div key={item.id}>
+                        {item.productname} {item.quantity}
+                        <button onClick={() => removeOne(item.id)}>−</button>
+                        <button onClick={() =>
+                            addToCart(products.find(p => p.id === item.id)!)
+                        }>+</button>
                     </div>
                 ))}
 
                 <h3>Total: {total} €</h3>
-
-                <button onClick={() => syncCart([])}>
-                    Clear
-                </button>
 
                 <button
                     disabled={!selectedCustomer || cart.length === 0}
@@ -430,22 +309,6 @@ export default function Shop() {
                     Create Invoice
                 </button>
             </div>
-
-            {/* TOAST */}
-            {toast && (
-                <div style={{
-                    position: "fixed",
-                    bottom: 20,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    background: "#222",
-                    padding: 10,
-                    borderRadius: 8,
-                }}>
-                    {toast}
-                    <button onClick={undoRemove}>Undo</button>
-                </div>
-            )}
         </div>
     );
 }
