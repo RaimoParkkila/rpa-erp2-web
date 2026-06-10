@@ -13,4 +13,19 @@ export const productService = {
 
     return data || [];
   },
+
+  async getById(id: number) {
+    const { data, error } = await supabase
+      .from("rpa_shop_product")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error(error);
+      throw error;
+    }
+
+    return data;
+  },
 };

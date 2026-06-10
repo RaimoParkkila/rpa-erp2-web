@@ -1,147 +1,158 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { supabase } from "../../../services/supabase";
-import { useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { ProductService } from "../services/ProductService";
 
 type Product = {
-    id: number;
-    productname: string;
-    brand: string;
-    model: string;
-    price: number;
-    image_url?: string;
+  id: number;
+  productname: string;
+  brand: string;
+  model: string;
+  price: number;
+  image_url?: string | null;
 };
 
-
 export default function ProductDetail() {
-    const { id } = useParams();
-    const [product, setProduct] = useState<Product | null>(null);
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-    useEffect(() => {
-        fetchProduct();
-    }, []);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  async function fetchProduct() {
+    setLoading(true);
 
-    function addToCart(product: Product) {
-        const existing = localStorage.getItem("cart");
-        const cart = existing ? JSON.parse(existing) : [];
-
-        cart.push({
-            id: product.id,
-            productname: product.productname,
-            price: product.price,
-        });
-
-        localStorage.setItem("cart", JSON.stringify(cart));
+    try {
+      const data = await ProductService.getById(Number(id));
+      setProduct(data);
+    } catch (error) {
+      console.error(error);
     }
 
-    async function fetchProduct() {
-        setLoading(true);
+    setLoading(false);
+  }
 
-        const { data, error } = await supabase
-            .from("rpa_shop_product")
-            .select("*")
-            .eq("id", id)
-            .single();
+  useEffect(() => {
+    fetchProduct();
+  }, [id]);
 
-        if (error) {
-            console.error(error);
-        } else {
-            setProduct(data);
-        }
+  if (loading) return <p>Loading...</p>;
+  if (!product) return <p>Product not found</p>;
 
-        setLoading(false);
-    }
+  return (
+    <div style={{ padding: 20, maxWidth: 900, margin: "0 auto" }}>
 
-    if (loading) return <p>Loading...</p>;
-    if (!product) return <p>Not found</p>;
+      {/* NAV */}
+      <div style={{
+        display: "flex",
+        gap: 10,
+        marginBottom: 20
+      }}>
+        <button onClick={() => navigate("/products")}>
+          ← Back to Products
+        </button>
 
-    return (
-        <div style={{ padding: "20px", maxWidth: "600px", margin: "0 auto" }}>
+        <button onClick={() => navigate("/shop")}>
+          ← Shop
+        </button>
+      </div>
 
-            {/* NAV */}
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "10px",
-                    marginBottom: "20px",
-                    padding: "10px",
-                    borderBottom: "1px solid #333",
-                }}
-            >
-                <button
-                    onClick={() => navigate("/products")}
-                    style={{
-                        padding: "6px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #333",
-                        background: "#1e1e1e",
-                        color: "white",
-                        cursor: "pointer",
-                    }}
-                >
-                    ← Products
-                </button>
-
-                <button
-                    onClick={() => navigate("/shop")}
-                    style={{
-                        padding: "6px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #333",
-                        background: "#1e1e1e",
-                        color: "white",
-                        cursor: "pointer",
-                    }}
-                >
-                    ← Shop
-                </button>
-            </div>
-
-            {/* PRODUCT CARD */}
-            <div
-                style={{
-                    background: "#1e1e1e",
-                    padding: "20px",
-                    borderRadius: "10px",
-                    border: "1px solid #333",
-                    textAlign: "center",
-                }}
-            >
-                <h1>{product.productname}</h1>
-
-                {product.image_url && (
-                    <img
-                        src={product.image_url}
-                        style={{
-                            width: "300px",
-                            borderRadius: "10px",
-                            marginBottom: "10px",
-                        }}
-                    />
-                )}
-
-                <p><b>Brand:</b> {product.brand}</p>
-                <p><b>Model:</b> {product.model}</p>
-                <p><b>Price:</b> €{product.price}</p>
-                <button
-                    onClick={() => addToCart(product)}
-                    style={{
-                        marginTop: "15px",
-                        padding: "10px 14px",
-                        borderRadius: "6px",
-                        border: "1px solid #333",
-                        background: "#00ffcc",
-                        color: "#000",
-                        cursor: "pointer",
-                    }}
-                >
-                    Add to Cart
-                </button>
-            </div>
+      {/* HEADER */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 20
+      }}>
+        <div>
+          <h1>{product.productname}</h1>
+          <p style={{ color: "#666" }}>
+            {product.brand} / {product.model}
+          </p>
         </div>
-    );
+
+        <div style={{
+          textAlign: "right"
+        }}>
+          <div style={{ fontSize: 20, fontWeight: "bold" }}>
+            €{product.price}
+          </div>
+
+          <div style={{ fontSize: 12, color: "#888" }}>
+            Product ID: {product.id}
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN GRID */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 300px",
+        gap: 20
+      }}>
+
+        {/* LEFT: IMAGE + INFO */}
+        <div style={{
+          background: "#1e1e1e",
+          padding: 20,
+          borderRadius: 10
+        }}>
+          {product.image_url && (
+            <img
+              src={product.image_url}
+              style={{
+                width: "100%",
+                maxHeight: 400,
+                objectFit: "cover",
+                borderRadius: 10,
+                marginBottom: 15
+              }}
+            />
+          )}
+
+          <h3>Product Overview</h3>
+
+          <p><b>Name:</b> {product.productname}</p>
+          <p><b>Brand:</b> {product.brand}</p>
+          <p><b>Model:</b> {product.model}</p>
+          <p><b>Price:</b> €{product.price}</p>
+        </div>
+
+        {/* RIGHT: ERP PANEL */}
+        <div style={{
+          background: "#1e1e1e",
+          padding: 20,
+          borderRadius: 10,
+          height: "fit-content"
+        }}>
+          <h3>ERP Controls</h3>
+
+          <button style={{ width: "100%", marginBottom: 10 }}>
+            ✏️ Edit Product
+          </button>
+
+          <button style={{ width: "100%", marginBottom: 10 }}>
+            💰 Update Price
+          </button>
+
+          <button style={{
+            width: "100%",
+            marginBottom: 10,
+            color: "red"
+          }}>
+            ⛔ Deactivate
+          </button>
+
+          <hr style={{ margin: "15px 0" }} />
+
+          <h4>Business Data</h4>
+
+          <p style={{ fontSize: 12 }}>
+            • Invoices: (future link)<br />
+            • Sales: (future stats)<br />
+            • Stock: (future module)
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
