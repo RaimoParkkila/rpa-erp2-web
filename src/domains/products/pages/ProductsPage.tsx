@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../services/supabase";
 import { useNavigate } from "react-router-dom";
-
+import { ProductService } from "../services/ProductService";
 type Product = {
   id: number;
   productname: string;
@@ -51,12 +51,12 @@ export default function Products() {
   async function fetchProducts() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("rpa_shop_product")
-      .select("id, productname, brand, model, price, status, image_url");
-
-    if (error) console.error(error);
-    else setProducts((data as Product[]) || []);
+    try {
+      const data = await ProductService.getAll();
+      setProducts(data);
+    } catch (error) {
+      console.error(error);
+    }
 
     setLoading(false);
   }
@@ -65,12 +65,9 @@ export default function Products() {
     const ok = window.confirm("Delete product?");
     if (!ok) return;
 
-    const { error } = await supabase
-      .from("rpa_shop_product")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
+    try {
+      await ProductService.delete(id);
+    } catch (error) {
       console.error(error);
       return;
     }
