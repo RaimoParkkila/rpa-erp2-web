@@ -173,17 +173,45 @@ export default function InvoiceDetail() {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 16px",
+          border: "1px solid #ddd",
+          borderRadius: "8px",
+          marginBottom: "16px",
+          background: "#fafafa",
+        }}
+      >
+        {/* LEFT SIDE */}
         <div>
-          Invoice #{invoice.id}
-          <br />
-          Date: {invoice.date}
+          <div style={{ fontSize: "18px", fontWeight: 600 }}>
+            Invoice #{invoice.id}
+          </div>
+
+          <div style={{ fontSize: "12px", color: "#666" }}>
+            Date: {invoice.date}
+          </div>
         </div>
 
-        <div>
-          Total: €{total.toFixed(2)}
-          <br />
-          <button onClick={handleExportPdf}>Export PDF</button>
+        {/* RIGHT SIDE */}
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: "16px", fontWeight: 600 }}>
+            Total: €{total.toFixed(2)}
+          </div>
+
+          <button
+            onClick={handleExportPdf}
+            style={{
+              marginTop: "6px",
+              padding: "6px 12px",
+              cursor: "pointer",
+            }}
+          >
+            Export PDF
+          </button>
         </div>
       </div>
 
