@@ -36,6 +36,7 @@ type EditingLine = {
 export default function InvoiceDetail() {
   const { id } = useParams();
   const invoiceId = Number(id);
+  const isValidId = !isNaN(invoiceId) && invoiceId > 0;
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,8 @@ export default function InvoiceDetail() {
   const safeProducts = Array.isArray(products) ? products : [];
 
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const pdfRef = useRef<HTMLDivElement | null>(null);
 
@@ -73,10 +76,18 @@ export default function InvoiceDetail() {
   };
 
   useEffect(() => {
-    if (!invoiceId) return;
+    if (!isValidId) return;
 
-    reloadHeader();
-    reloadLines();
+    const load = async () => {
+      setReady(false);
+
+      await reloadHeader();
+      await reloadLines();
+
+      setReady(true);
+    };
+
+    load();
   }, [invoiceId]);
 
   // ---------------- PRODUCTS ----------------
@@ -157,21 +168,31 @@ export default function InvoiceDetail() {
 
   // ---------------- PDF ----------------
   const handleExportPdf = async () => {
-    if (!pdfRef?.current || !invoice?.id) return;
+    if (!pdfRef?.current || !invoice?.id || !ready || exporting) return;
 
-    const canvas = await html2canvas(pdfRef.current, {
-      scale: 2,
-      useCORS: true,
-    });
+    setExporting(true);
+    setError("");
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
+    try {
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2,
+        useCORS: true,
+      });
 
-    const width = 210;
-    const height = 297;
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
 
-    pdf.addImage(imgData, "PNG", 0, 0, width, height);
-    pdf.save(`invoice-${invoice.id}.pdf`);
+      const width = 210;
+      const height = 297;
+
+      pdf.addImage(imgData, "PNG", 0, 0, width, height);
+      pdf.save(`invoice-${invoice.id}.pdf`);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "Failed to export PDF");
+    } finally {
+      setExporting(false);
+    }
   };
 
   // ---------------- UI ----------------
@@ -187,7 +208,7 @@ export default function InvoiceDetail() {
         Invoice not found or deleted
       </div>
     );
- 
+
   return (
     <>
       <div
@@ -221,13 +242,15 @@ export default function InvoiceDetail() {
 
           <button
             onClick={handleExportPdf}
+            disabled={!ready || exporting}
             style={{
               marginTop: "6px",
               padding: "6px 12px",
-              cursor: "pointer",
+              cursor: !ready || exporting ? "not-allowed" : "pointer",
+              opacity: !ready || exporting ? 0.5 : 1,
             }}
           >
-            Export PDF
+            {exporting ? "Exporting PDF..." : "Export PDF"}
           </button>
         </div>
       </div>
