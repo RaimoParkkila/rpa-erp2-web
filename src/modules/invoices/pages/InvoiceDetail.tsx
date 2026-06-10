@@ -139,10 +139,17 @@ export default function InvoiceDetail() {
   };
 
   // ---------------- CALC ----------------
-  const calcTotal = (l: InvoiceLine) =>
-    Number(l.amount_snapshot) * Number(l.price_snapshot);
+  const calcTotal = (l: InvoiceLine) => {
+    const amount = Number(l.amount_snapshot) || 0;
+    const price = Number(l.price_snapshot) || 0;
 
-  const subtotal = lines.reduce((s, l) => s + calcTotal(l), 0);
+    return amount * price;
+  };
+
+  const subtotal = (lines || []).reduce(
+    (s, l) => s + calcTotal(l),
+    0
+  );
   const vat = subtotal * 0.21;
   const total = subtotal + vat;
 
@@ -150,7 +157,7 @@ export default function InvoiceDetail() {
 
   // ---------------- PDF ----------------
   const handleExportPdf = async () => {
-    if (!pdfRef.current || !invoice) return;
+    if (!pdfRef?.current || !invoice?.id) return;
 
     const canvas = await html2canvas(pdfRef.current, {
       scale: 2,
@@ -220,22 +227,34 @@ export default function InvoiceDetail() {
       <table style={{ width: "100%" }}>
         <thead>
           <tr>
-            <th>Product</th>
-            <th>Amount</th>
-            <th>Price</th>
-            <th>Total</th>
-            <th>Actions</th>
+            <th style={{ textAlign: "left" }}>Product</th>
+            <th style={{ textAlign: "right" }}>Amount</th>
+            <th style={{ textAlign: "right" }}>Price</th>
+            <th style={{ textAlign: "right" }}>Total</th>
+            <th style={{ textAlign: "center" }}>Actions</th>
           </tr>
         </thead>
 
         <tbody>
-          {lines.map((l) => (
+          {(lines || []).map((l) => (
             <tr key={l.id}>
-              <td>{l.productname_snapshot}</td>
-              <td>{l.amount_snapshot}</td>
-              <td>{Number(l.price_snapshot).toFixed(2)}</td>
-              <td>{calcTotal(l).toFixed(2)}</td>
-              <td>
+              <td style={{ textAlign: "left" }}>
+                {l.productname_snapshot}
+              </td>
+
+              <td style={{ textAlign: "right" }}>
+                {l.amount_snapshot}
+              </td>
+
+              <td style={{ textAlign: "right" }}>
+                {Number(l.price_snapshot).toFixed(2)}
+              </td>
+
+              <td style={{ textAlign: "right" }}>
+                {calcTotal(l).toFixed(2)}
+              </td>
+
+              <td style={{ textAlign: "center" }}>
                 <button onClick={() => openEdit(l)}>Edit</button>
                 <button onClick={() => handleDeleteLine(l.id)}>
                   Delete
