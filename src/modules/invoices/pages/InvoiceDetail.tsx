@@ -175,8 +175,18 @@ export default function InvoiceDetail() {
   };
 
   // ---------------- UI ----------------
-  if (loading) return <>Loading...</>;
-  if (!invoice) return <>No invoice found</>;
+  if (loading)
+    return (
+      <div style={{ padding: "20px", fontSize: "14px" }}>
+        Loading invoice...
+      </div>
+    );
+  if (!invoice)
+    return (
+      <div style={{ padding: "20px", color: "red" }}>
+        Invoice not found or deleted
+      </div>
+    );
 
   return (
     <>
@@ -222,41 +232,106 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {error && (
+        <div
+          style={{
+            background: "#ffe5e5",
+            border: "1px solid #ffb3b3",
+            padding: "10px",
+            margin: "10px 0",
+            borderRadius: "6px",
+            color: "#900",
+            fontSize: "13px",
+          }}
+        >
+          ⚠ {error}
+        </div>
+      )}
 
-      <table style={{ width: "100%" }}>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: "13px",
+        }}
+      >
         <thead>
           <tr>
-            <th style={{ textAlign: "left" }}>Product</th>
-            <th style={{ textAlign: "right" }}>Amount</th>
-            <th style={{ textAlign: "right" }}>Price</th>
-            <th style={{ textAlign: "right" }}>Total</th>
-            <th style={{ textAlign: "center" }}>Actions</th>
+            <th style={{ textAlign: "left", padding: "8px 6px" }}>
+              Product
+            </th>
+
+            <th style={{ textAlign: "right", padding: "8px 6px" }}>
+              Amount
+            </th>
+
+            <th style={{ textAlign: "right", padding: "8px 6px" }}>
+              Price
+            </th>
+
+            <th style={{ textAlign: "right", padding: "8px 6px" }}>
+              Total
+            </th>
+
+            <th style={{ textAlign: "center", padding: "8px 6px" }}>
+              Actions
+            </th>
           </tr>
         </thead>
 
         <tbody>
           {(lines || []).map((l) => (
-            <tr key={l.id}>
-              <td style={{ textAlign: "left" }}>
+            <tr
+              key={l.id}
+              style={{
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLTableRowElement).style.background = "#f5f7fa";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
+              }}
+            >
+              <td style={{ textAlign: "left", padding: "6px 6px" }}>
                 {l.productname_snapshot}
               </td>
 
-              <td style={{ textAlign: "right" }}>
+              <td style={{ textAlign: "right", padding: "6px 6px" }}>
                 {l.amount_snapshot}
               </td>
 
-              <td style={{ textAlign: "right" }}>
+              <td style={{ textAlign: "right", padding: "6px 6px" }}>
                 {Number(l.price_snapshot).toFixed(2)}
               </td>
 
-              <td style={{ textAlign: "right" }}>
+              <td style={{ textAlign: "right", padding: "6px 6px" }}>
                 {calcTotal(l).toFixed(2)}
               </td>
 
-              <td style={{ textAlign: "center" }}>
-                <button onClick={() => openEdit(l)}>Edit</button>
-                <button onClick={() => handleDeleteLine(l.id)}>
+              <td style={{ textAlign: "center", padding: "6px 6px" }}>
+                <button
+                  onClick={() => openEdit(l)}
+                  style={{
+                    marginRight: "6px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => {
+                    const ok = window.confirm("Delete this invoice line?");
+                    if (ok) handleDeleteLine(l.id);
+                  }}
+                  style={{
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    color: "#b00020",
+                  }}
+                >
                   Delete
                 </button>
               </td>
