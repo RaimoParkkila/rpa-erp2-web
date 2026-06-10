@@ -22,7 +22,14 @@ type Invoice = {
   status: string;
   date: string;
   rpa_customer_id: number;
-  customerName?: string; // 🔥 FIX: tärkeä PDF:lle
+  customerName?: string;
+};
+
+type EditingLine = {
+  id: number;
+  productname: string;
+  amount: string;
+  price: string;
 };
 
 // ---------------- COMPONENT ----------------
@@ -30,17 +37,17 @@ export default function InvoiceDetail() {
   const { id } = useParams();
   const invoiceId = Number(id);
 
-  const [invoice, setInvoice] = useState<Invoice | null>(null); // 🔥 FIX
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [editingLine, setEditingLine] = useState<any>(null);
+  const [editingLine, setEditingLine] = useState<EditingLine | null>(null);
 
   const [products, setProducts] = useState<any[]>([]);
   const safeProducts = Array.isArray(products) ? products : [];
 
   const [error, setError] = useState("");
 
-  const pdfRef = useRef(null);
+  const pdfRef = useRef<HTMLDivElement | null>(null);
 
   // ---------------- LINES ----------------
   const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
@@ -54,10 +61,9 @@ export default function InvoiceDetail() {
 
     try {
       const res = await InvoiceDetailService.getById(invoiceId);
-
       if (!res) throw new Error("Invoice not found");
 
-      setInvoice(res); // 🔥 FIX
+      setInvoice(res);
     } catch (err: any) {
       console.error(err);
       setError(err?.message || "Failed to load invoice");
@@ -66,45 +72,6 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ---------------- PDF EXPORT ----------------
-  const handleExportPdf = async () => {
-    if (!pdfRef.current || !invoice) return;
-
-    try {
-      const canvas = await html2canvas(pdfRef.current, {
-        scale: 2,
-        useCORS: true,
-        scrollY: -window.scrollY,
-      });
-
-      const imgData = canvas.toDataURL("image/png");
-
-      const pdf = new jsPDF("p", "mm", "a4");
-
-      const pageWidth = 210;
-      const pageHeight = 297;
-
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * pageWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`invoice-${invoice.id}.pdf`);
-    } catch (err) {
-      console.error("PDF export failed:", err);
-    }
-  };
   useEffect(() => {
     if (!invoiceId) return;
 
@@ -137,23 +104,17 @@ export default function InvoiceDetail() {
 
   const toNum = (v: any) => Number(v) || 0;
 
+  // ---------------- UPDATE ----------------
   const handleUpdateLine = async () => {
     if (!editingLine) return;
 
     setError("");
 
-    const updated = {
-      id: editingLine.id,
-      productname: editingLine.productname,
-      amount: toNum(editingLine.amount),
-      price: toNum(editingLine.price),
-    };
-
     try {
-      await invoiceLineService.updateLine(updated.id, {
-        productname_snapshot: updated.productname,
-        amount_snapshot: updated.amount,
-        price_snapshot: updated.price,
+      await invoiceLineService.updateLine(editingLine.id, {
+        productname_snapshot: editingLine.productname,
+        amount_snapshot: toNum(editingLine.amount),
+        price_snapshot: toNum(editingLine.price),
       });
 
       setEditingLine(null);
@@ -164,6 +125,7 @@ export default function InvoiceDetail() {
     }
   };
 
+  // ---------------- DELETE ----------------
   const handleDeleteLine = async (id: number) => {
     setError("");
 
@@ -186,21 +148,36 @@ export default function InvoiceDetail() {
 
   const isDraft = isInvoiceEditable(invoice?.status);
 
+  // ---------------- PDF ----------------
+  const handleExportPdf = async () => {
+    if (!pdfRef.current || !invoice) return;
+
+    const canvas = await html2canvas(pdfRef.current, {
+      scale: 2,
+      useCORS: true,
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const width = 210;
+    const height = 297;
+
+    pdf.addImage(imgData, "PNG", 0, 0, width, height);
+    pdf.save(`invoice-${invoice.id}.pdf`);
+  };
+
   // ---------------- UI ----------------
   if (loading) return <>Loading...</>;
   if (!invoice) return <>No invoice found</>;
 
   return (
     <>
-      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
           Invoice #{invoice.id}
           <br />
           Date: {invoice.date}
-          <br />
-          {/* 🔥 FIX: customerName */}
-          Customer: {invoice.customerName ?? "Unknown"}
         </div>
 
         <div>
@@ -210,9 +187,8 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      {error && <div style={{ color: "red" }}>⚠ {error}</div>}
+      {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {/* TABLE */}
       <table style={{ width: "100%" }}>
         <thead>
           <tr>
@@ -242,7 +218,6 @@ export default function InvoiceDetail() {
         </tbody>
       </table>
 
-      {/* ADD */}
       {isDraft && (
         <AddInvoiceLine
           products={safeProducts}
@@ -252,7 +227,6 @@ export default function InvoiceDetail() {
         />
       )}
 
-      {/* EDIT */}
       {editingLine && (
         <InvoiceLineEditor
           value={editingLine}
@@ -262,16 +236,8 @@ export default function InvoiceDetail() {
         />
       )}
 
-      {/* PDF TARGET */}
-      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-        <div
-          ref={pdfRef}
-          style={{
-            width: "210mm",
-            minHeight: "297mm",
-            background: "white",
-          }}
-        >
+      <div style={{ position: "absolute", left: "-9999px" }}>
+        <div ref={pdfRef}>
           <InvoicePdfTemplate data={invoice} lines={lines} />
         </div>
       </div>

@@ -1,6 +1,19 @@
 import { supabase } from "@services/supabase";
 
+
+export type InvoiceDetailDTO = {
+  id: number;
+  status: string;
+  date: string;
+  rpa_customer_id: number;
+  customer?: any;
+  lines: any[];
+  total: number;
+};
+
 export const InvoiceDetailService = {
+
+  
   async getById(id: number) {
     // 1. HEADER
     const { data: invoice, error: invError } = await supabase
@@ -58,6 +71,8 @@ export const InvoiceDetailService = {
       0
     );
 
+
+    
     // 5. RETURN CLEAN DTO
     return {
       id: invoice.id,
