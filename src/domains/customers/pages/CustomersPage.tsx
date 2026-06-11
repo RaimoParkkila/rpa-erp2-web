@@ -32,6 +32,14 @@ export default function Customers() {
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0 }}>Customers</h1>
 
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={() => navigate("/customers/new")}
+          >
+            + New Customer
+          </button>
+        </div>
+
         <div style={{ marginTop: 18, opacity: 0.6 }}>
           Customer database & contact registry
         </div>

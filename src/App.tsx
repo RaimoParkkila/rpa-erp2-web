@@ -37,6 +37,8 @@ import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
 import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
 
 import { supabase } from "./services/supabase";
+import CustomerCreate from "./domains/customers/pages/CustomerCreate";
+ 
 
 function Layout() {
   const location = useLocation();
@@ -132,6 +134,7 @@ export default function App() {
 
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetail />} />
+            <Route path="/customers/new" element={<CustomerCreate />} />
 
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail />} />
