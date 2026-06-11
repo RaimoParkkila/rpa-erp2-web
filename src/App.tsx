@@ -11,7 +11,11 @@ import {
 import "./App.css";
 
 import Customers from "./domains/customers/pages/CustomersPage";
+import CustomerDetail from "./domains/customers/pages/CustomerDetail";
+import CustomerCreate from "./domains/customers/pages/CustomerCreate";
+
 import Products from "./domains/products/pages/ProductsPage";
+import ProductDetail from "./domains/products/pages/ProductDetail";
 
 import Storage from "./domains/storage/pages/StoragePage";
 import StorageDetail from "./domains/storage/pages/StorageDetail";
@@ -19,29 +23,27 @@ import StorageCreate from "./domains/storage/pages/StorageCreate";
 
 import Wholesale from "./domains/wholesale/pages/WholesalePage";
 import WholesaleDetail from "./domains/wholesale/pages/WholesaleDetail";
-import WholesaleCreate from "./domains/wholesale/pages/WholesaleCreate"; // ✅ ADD THIS
+import WholesaleCreate from "./domains/wholesale/pages/WholesaleCreate";
 
 import Dashboard from "./pages/Dashboard";
 import Shop from "./pages/Shop";
-
-import ProductDetail from "./domains/products/pages/ProductDetail";
 import Login from "./pages/Login";
 import AdminPanel from "./pages/AdminPanel";
-
-import ProtectedRoute from "./routes/ProtectedRoute";
-import AdminRoute from "./routes/AdminRoute";
-
-import CustomerDetail from "./domains/customers/pages/CustomerDetail";
-import CustomerCreate from "./domains/customers/pages/CustomerCreate";
 
 import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
 import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
 
+import ProtectedRoute from "./routes/ProtectedRoute";
+import AdminRoute from "./routes/AdminRoute";
+
 import { supabase } from "./services/supabase";
+import { getRole } from "./auth/getRole";
 
 function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  const role = getRole();
 
   const linkStyle = (path: string) => ({
     color: location.pathname === path ? "#00ffcc" : "white",
@@ -77,13 +79,37 @@ function Layout() {
           }}
         >
           <Link to="/" style={linkStyle("/")}>Dashboard</Link>
-          <Link to="/customers" style={linkStyle("/customers")}>Customers</Link>
-          <Link to="/products" style={linkStyle("/products")}>Products</Link>
-          <Link to="/invoices" style={linkStyle("/invoices")}>Invoices</Link>
-          <Link to="/storage" style={linkStyle("/storage")}>Storage</Link>
-          <Link to="/wholesale" style={linkStyle("/wholesale")}>Wholesale</Link>
-          <Link to="/shop" style={linkStyle("/shop")}>Shop</Link>
-          <Link to="/admin" style={linkStyle("/admin")}>Admin</Link>
+
+          <Link to="/customers" style={linkStyle("/customers")}>
+            Customers
+          </Link>
+
+          <Link to="/products" style={linkStyle("/products")}>
+            Products
+          </Link>
+
+          <Link to="/invoices" style={linkStyle("/invoices")}>
+            Invoices
+          </Link>
+
+          <Link to="/storage" style={linkStyle("/storage")}>
+            Storage
+          </Link>
+
+          <Link to="/wholesale" style={linkStyle("/wholesale")}>
+            Wholesale
+          </Link>
+
+          <Link to="/shop" style={linkStyle("/shop")}>
+            Shop
+          </Link>
+
+          {/* ADMIN ONLY */}
+          {role === "admin" && (
+            <Link to="/admin" style={linkStyle("/admin")}>
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div style={{ marginTop: "auto" }}>
@@ -126,30 +152,24 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Dashboard />} />
 
-            {/* CUSTOMERS */}
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/customers/new" element={<CustomerCreate />} />
 
-            {/* PRODUCTS */}
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail />} />
 
-            {/* INVOICES */}
             <Route path="/invoices" element={<InvoicesPage />} />
             <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
-            {/* STORAGE */}
             <Route path="/storage" element={<Storage />} />
             <Route path="/storage/new" element={<StorageCreate />} />
             <Route path="/storage/:id" element={<StorageDetail />} />
 
-            {/* WHOLESALE (FIXED ORDER + CREATE ADDED) */}
             <Route path="/wholesale" element={<Wholesale />} />
-            <Route path="/wholesale/new" element={<WholesaleCreate />} /> {/* ✅ FIX */}
+            <Route path="/wholesale/new" element={<WholesaleCreate />} />
             <Route path="/wholesale/:id" element={<WholesaleDetail />} />
 
-            {/* SHOP */}
             <Route path="/shop" element={<Shop />} />
             <Route path="/shop/:id" element={<ProductDetail />} />
           </Route>

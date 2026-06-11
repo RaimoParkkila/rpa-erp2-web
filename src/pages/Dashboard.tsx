@@ -46,22 +46,18 @@ export default function Dashboard() {
     setLines(lineData || []);
   }
 
- 
-
   const draft = invoices.filter(i => i.status === "DRAFT").length;
   const sent = invoices.filter(i => i.status === "SENT").length;
   const paid = invoices.filter(i => i.status === "PAID").length;
 
-  // 🔥 REAL REVENUE
   const paidInvoiceIds = invoices
     .filter(i => i.status === "PAID")
     .map(i => i.id);
 
   const revenue = lines
     .filter(l => paidInvoiceIds.includes(l.rpa_headerofinvoice_id))
-    .reduce((sum, l) => sum + (l.price * l.amount), 0);
+    .reduce((sum, l) => sum + l.price * l.amount, 0);
 
-  // 🔥 TOP CUSTOMERS
   const customerSpend: Record<number, number> = {};
 
   lines.forEach(line => {
@@ -73,7 +69,7 @@ export default function Dashboard() {
 
     customerSpend[invoice.rpa_customer_id] =
       (customerSpend[invoice.rpa_customer_id] || 0) +
-      (line.price * line.amount);
+      line.price * line.amount;
   });
 
   const topCustomers = Object.entries(customerSpend)
@@ -98,7 +94,6 @@ export default function Dashboard() {
     </div>
   );
 
-
   const statusBadge = (status: string) => {
     const baseStyle: React.CSSProperties = {
       padding: "4px 10px",
@@ -106,104 +101,62 @@ export default function Dashboard() {
       fontSize: "12px",
       fontWeight: 600,
       display: "inline-block",
-      border: "1px solid transparent",
     };
 
     switch (status) {
       case "DRAFT":
         return (
-          <span
-            style={{
-              ...baseStyle,
-              background: "#2a2a2a",
-              color: "#aaa",
-              borderColor: "#444",
-            }}
-          >
+          <span style={{ ...baseStyle, background: "#2a2a2a", color: "#aaa" }}>
             DRAFT
           </span>
         );
-
       case "SENT":
         return (
-          <span
-            style={{
-              ...baseStyle,
-              background: "#1e3a5f",
-              color: "#4da3ff",
-              borderColor: "#2c5d8a",
-            }}
-          >
+          <span style={{ ...baseStyle, background: "#1e3a5f", color: "#4da3ff" }}>
             SENT
           </span>
         );
-
       case "PAID":
         return (
-          <span
-            style={{
-              ...baseStyle,
-              background: "#1f3d2b",
-              color: "#3dff9a",
-              borderColor: "#2f7a55",
-            }}
-          >
+          <span style={{ ...baseStyle, background: "#1f3d2b", color: "#3dff9a" }}>
             PAID
           </span>
         );
-
       default:
         return (
-          <span
-            style={{
-              ...baseStyle,
-              background: "#333",
-              color: "#fff",
-            }}
-          >
+          <span style={{ ...baseStyle, background: "#333", color: "#fff" }}>
             {status}
           </span>
         );
     }
   };
 
-
   const total = invoices.length;
 
-  const draftPct = total ? (draft / total) * 100 : 0;
-  const sentPct = total ? (sent / total) * 100 : 0;
-  const paidPct = total ? (paid / total) * 100 : 0;
-
   return (
-    <div>
+    <div style={{ color: "white" }}>
       <h1>ERP Dashboard</h1>
 
       {/* GRID */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "12px",
           marginTop: "20px",
         }}
       >
-        {card("Total Invoices", total, () =>
-          navigate("/invoices")
-        )}
+        {card("Total Invoices", total, () => navigate("/invoices"))}
         {card("Draft", draft)}
         {card("Sent", sent)}
         {card("Paid", paid)}
-
         {card("Customers", customers.length)}
-
         {card("Revenue (€)", revenue.toFixed(2))}
       </div>
 
-      {/* STATUS PREVIEW (optional ERP UI demo element) */}
+      {/* STATUS PREVIEW */}
       <div style={{ marginTop: "20px" }}>
         <h3>Status Preview</h3>
-
         <div style={{ display: "flex", gap: "10px" }}>
           {statusBadge("DRAFT")}
           {statusBadge("SENT")}
@@ -215,9 +168,7 @@ export default function Dashboard() {
       <div style={{ marginTop: "30px" }}>
         <h2>Top Customers</h2>
 
-        {topCustomers.length === 0 && (
-          <p>No paid invoices yet</p>
-        )}
+        {topCustomers.length === 0 && <p>No paid invoices yet</p>}
 
         {topCustomers.map(([customerId, amount]) => (
           <div
@@ -238,17 +189,9 @@ export default function Dashboard() {
       <div style={{ marginTop: "30px" }}>
         <h2>Quick Actions</h2>
 
-        <button onClick={() => navigate("/shop")}>
-          Go to Shop
-        </button>
-
-        <button onClick={() => navigate("/invoices")}>
-          View Invoices
-        </button>
-
-        <button onClick={() => navigate("/customers")}>
-          View Customers
-        </button>
+        <button onClick={() => navigate("/shop")}>Go to Shop</button>
+        <button onClick={() => navigate("/invoices")}>View Invoices</button>
+        <button onClick={() => navigate("/customers")}>View Customers</button>
       </div>
     </div>
   );
