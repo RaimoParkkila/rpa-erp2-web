@@ -1,184 +1,381 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../../services/supabase";
 import { useNavigate } from "react-router-dom";
-import { formatDateES } from "../../../utils/date";
-
-type StorageBranch = {
+import { ProductService } from "../services/ProductService";
+type Product = {
   id: number;
-  zipcode: string;
-  activated_date: string;
-  branchofficename: string;
-  city: string;
-  country: string;
-  email: string;
-  phone1: string;
-  streetaddress: string;
+  productname: string;
+  brand: string;
+  model: string;
+  price: number;
+  status?: string | null;
+  image_url?: string | null;
 };
 
-export default function Storage() {
-  const [branches, setBranches] = useState<StorageBranch[]>([]);
+export default function Products() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [brandFilter, setBrandFilter] = useState("ALL");
+  const [minPrice, setMinPrice] = useState<number | "">("");
+  const [maxPrice, setMaxPrice] = useState<number | "">("");
+
+  const [sort, setSort] = useState("NONE");
+  const [search, setSearch] = useState("");
 
   const navigate = useNavigate();
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editProduct, setEditProduct] = useState<any>(null);
+
+  const [newProduct, setNewProduct] = useState({
+    productname: "",
+    brand: "",
+    model: "",
+    price: 0,
+  });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const [hoverImage, setHoverImage] = useState<string | null>(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+
+  const removeBrandFilter = () => setBrandFilter("ALL");
+  const removeMinPrice = () => setMinPrice("");
+  const removeMaxPrice = () => setMaxPrice("");
+
   useEffect(() => {
-    fetchBranches();
+    fetchProducts();
   }, []);
 
-  async function fetchBranches() {
+  async function fetchProducts() {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("rpa_storagebranchoffice")
-      .select("*");
-
-    if (error) {
+    try {
+      const data = await ProductService.getAll();
+      setProducts(data);
+    } catch (error) {
       console.error(error);
-    } else {
-      setBranches((data as StorageBranch[]) || []);
     }
 
     setLoading(false);
   }
 
-  const cardStyle: React.CSSProperties = {
-    background: "#111",
-    border: "1px solid #2a2a2a",
-    padding: 15,
-    borderRadius: 10,
-  };
+  async function deleteProduct(id: number) {
+    const ok = window.confirm("Delete product?");
+    if (!ok) return;
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: 10,
-    fontSize: 12,
-    opacity: 0.7,
-  };
+    try {
+      await ProductService.delete(id);
+    } catch (error) {
+      console.error(error);
+      return;
+    }
 
-  const td: React.CSSProperties = {
-    padding: 10,
-    fontSize: 13,
-  };
+    setProducts((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  async function saveEdit() {
+    if (!editProduct || editingId === null) return;
+
+    const { error } = await supabase
+      .from("rpa_shop_product")
+      .update({
+        productname: editProduct.productname,
+        brand: editProduct.brand,
+        model: editProduct.model,
+        price: editProduct.price,
+      })
+      .eq("id", editingId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setEditingId(null);
+    setEditProduct(null);
+    fetchProducts();
+  }
+
+  async function addProduct() {
+    let imageUrl = "";
+
+    if (imageFile) {
+      const fileName = `${Date.now()}-${imageFile.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        console.error(uploadError);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(fileName);
+
+      imageUrl = data.publicUrl;
+    }
+
+    const { error } = await supabase.from("rpa_shop_product").insert({
+      productname: newProduct.productname,
+      brand: newProduct.brand,
+      model: newProduct.model,
+      price: newProduct.price,
+      image_url: imageUrl,
+    });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setNewProduct({
+      productname: "",
+      brand: "",
+      model: "",
+      price: 0,
+    });
+
+    setImageFile(null);
+    fetchProducts();
+  }
+
+  const brands = Array.from(new Set(products.map((p) => p.brand)));
+
+  const filteredProducts = products.filter((p) => {
+    const name = (p.productname ?? "").toLowerCase();
+    const brand = (p.brand ?? "").toLowerCase();
+    const model = (p.model ?? "").toLowerCase();
+
+    return (
+      (brandFilter === "ALL" || p.brand === brandFilter) &&
+      (minPrice === "" || p.price >= Number(minPrice)) &&
+      (maxPrice === "" || p.price <= Number(maxPrice)) &&
+      (search === "" ||
+        name.includes(search.toLowerCase()) ||
+        brand.includes(search.toLowerCase()) ||
+        model.includes(search.toLowerCase()))
+    );
+  });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sort) {
+      case "PRICE_ASC":
+        return a.price - b.price;
+      case "PRICE_DESC":
+        return b.price - a.price;
+      case "NAME_AZ":
+        return a.productname.localeCompare(b.productname);
+      case "NAME_ZA":
+        return b.productname.localeCompare(a.productname);
+      default:
+        return 0;
+    }
+  });
 
   return (
-    <div style={{ color: "white" }}>
+    <div style={{ padding: 20, background: "#0f0f0f", color: "white" }}>
+      <h2>Products</h2>
+
+      {/* ADD */}
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0 }}>Storage</h1>
+        <input
+          placeholder="Name"
+          value={newProduct.productname}
+          onChange={(e) =>
+            setNewProduct({ ...newProduct, productname: e.target.value })
+          }
+        />
 
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => navigate("/storage/new")}>
-            + New Branch
-          </button>
-        </div>
+        <input
+          placeholder="Brand"
+          value={newProduct.brand}
+          onChange={(e) =>
+            setNewProduct({ ...newProduct, brand: e.target.value })
+          }
+        />
 
-        <div style={{ marginTop: 18, opacity: 0.6 }}>
-          Branch offices & warehouse locations
-        </div>
+        <input
+          placeholder="Model"
+          value={newProduct.model}
+          onChange={(e) =>
+            setNewProduct({ ...newProduct, model: e.target.value })
+          }
+        />
+
+        <input
+          type="number"
+          value={newProduct.price}
+          onChange={(e) =>
+            setNewProduct({ ...newProduct, price: Number(e.target.value) })
+          }
+        />
+
+        <input
+          type="file"
+          onChange={(e) =>
+            e.target.files && setImageFile(e.target.files[0])
+          }
+        />
+
+        <button onClick={addProduct}>Add</button>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 10,
-          marginBottom: 20,
-        }}
-      >
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Branches</div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: "bold",
-            }}
-          >
-            {branches.length}
-          </div>
-        </div>
+      {/* FILTER + SORT */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 15, flexWrap: "wrap" }}>
+        <input
+          placeholder="Search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
 
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Countries</div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: "bold",
-            }}
-          >
-            {new Set(branches.map((b) => b.country)).size}
-          </div>
-        </div>
+        <select
+          value={brandFilter}
+          onChange={(e) => setBrandFilter(e.target.value)}
+        >
+          <option value="ALL">ALL</option>
+          {brands.map((b) => (
+            <option key={b}>{b}</option>
+          ))}
+        </select>
 
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Cities</div>
-          <div
-            style={{
-              fontSize: 26,
-              fontWeight: "bold",
-            }}
-          >
-            {new Set(branches.map((b) => b.city)).size}
-          </div>
-        </div>
+        <select value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="NONE">No sort</option>
+          <option value="PRICE_ASC">Price ↑</option>
+          <option value="PRICE_DESC">Price ↓</option>
+          <option value="NAME_AZ">Name A-Z</option>
+          <option value="NAME_ZA">Name Z-A</option>
+        </select>
+
+        <input
+          placeholder="Min price"
+          type="number"
+          value={minPrice}
+          onChange={(e) =>
+            setMinPrice(e.target.value === "" ? "" : Number(e.target.value))
+          }
+        />
+
+        <input
+          placeholder="Max price"
+          type="number"
+          value={maxPrice}
+          onChange={(e) =>
+            setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))
+          }
+        />
+
+        <button onClick={removeBrandFilter}>Clear brand</button>
+        <button onClick={removeMinPrice}>Clear min</button>
+        <button onClick={removeMaxPrice}>Clear max</button>
       </div>
 
-      {loading && <p>Loading...</p>}
+      {/* TABLE */}
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table width="100%">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Brand</th>
+              <th>Model</th>
+              <th>Price</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-      {!loading && (
-        <div style={{ overflowX: "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              background: "#0f0f0f",
-              borderRadius: 10,
-              overflow: "hidden",
-            }}
-          >
-            <thead>
-              <tr style={{ background: "#1a1a1a" }}>
-                <th style={th}>Name</th>
-                <th style={th}>City</th>
-                <th style={th}>Country</th>
-                <th style={th}>ZIP</th>
-                <th style={th}>Activated</th>
-                <th style={th}>Email</th>
-                <th style={th}>Phone</th>
+          <tbody>
+            {sortedProducts.map((p) => (
+              <tr key={p.id}>
+                <td>
+                  {p.image_url ? (
+                    <img
+                      src={p.image_url}
+                      style={{
+                        width: "50px",
+                        height: "50px",
+                        objectFit: "cover",
+                        borderRadius: "6px",
+                      }}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </td>
+
+                <td onClick={() => navigate(`/products/${p.id}`)}>
+                  {p.productname}
+                </td>
+
+                <td>{p.brand}</td>
+                <td>{p.model}</td>
+                <td>€{p.price}</td>
+
+                <td>
+                  <button
+                    onClick={() => {
+                      setEditingId(p.id);
+                      setEditProduct(p);
+                    }}
+                  >
+                    Edit
+                  </button>
+
+                  <button onClick={() => deleteProduct(p.id)}>
+                    Delete
+                  </button>
+                </td>
               </tr>
-            </thead>
+            ))}
+          </tbody>
+        </table>
+      )}
 
-            <tbody>
-              {branches.map((b) => (
-                <tr
-                  key={b.id}
-                  onClick={() => navigate(`/storage/${b.id}`)}
-                  style={{
-                    borderTop: "1px solid #222",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#1a1a1a")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <td style={td}>{b.branchofficename}</td>
-                  <td style={td}>{b.city}</td>
-                  <td style={td}>{b.country}</td>
-                  <td style={td}>{b.zipcode}</td>
+      {/* EDIT */}
+      {editingId !== null && (
+        <div style={{ marginTop: 20 }}>
+          <h3>Edit Product</h3>
 
-                  <td style={td}>
-                    {b.activated_date
-                      ? formatDateES(b.activated_date)
-                      : "-"}
-                  </td>
+          <input
+            value={editProduct?.productname || ""}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, productname: e.target.value })
+            }
+          />
 
-                  <td style={td}>{b.email}</td>
-                  <td style={td}>{b.phone1}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <input
+            value={editProduct?.brand || ""}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, brand: e.target.value })
+            }
+          />
+
+          <input
+            value={editProduct?.model || ""}
+            onChange={(e) =>
+              setEditProduct({ ...editProduct, model: e.target.value })
+            }
+          />
+
+          <input
+            type="number"
+            value={editProduct?.price || 0}
+            onChange={(e) =>
+              setEditProduct({
+                ...editProduct,
+                price: Number(e.target.value),
+              })
+            }
+          />
+
+          <button onClick={saveEdit}>Save</button>
+          <button onClick={() => setEditingId(null)}>Cancel</button>
         </div>
       )}
     </div>
