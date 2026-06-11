@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../services/supabase";
 
-/**
- * Tenant helper (voit myöhemmin siirtää Contextiin)
- */
 function getTenantId(): string | null {
   return localStorage.getItem("tenant_id");
 }
 
-/**
- * Domain → table mapping
- */
 type DomainTables = {
   customers: "rpa_customer";
   products: "rpa_shop_product";
@@ -35,22 +29,18 @@ export function useCrud<T extends Record<string, any>>(
 
   const tenantId = getTenantId();
 
-  const table = ((): DomainTables[DomainName] => {
-    const map: DomainTables = {
-      customers: "rpa_customer",
-      products: "rpa_shop_product",
-      invoices: "rpaheaderofinvoice",
-      invoice_lines: "rpa_invoice_line",
-      storage: "rpa_storagebranchoffice",
-      wholesale: "rpa_wholesale",
-    };
-
-    return map[domain];
-  })();
+  const table: DomainTables[DomainName] = {
+    customers: "rpa_customer",
+    products: "rpa_shop_product",
+    invoices: "rpaheaderofinvoice",
+    invoice_lines: "rpa_invoice_line",
+    storage: "rpa_storagebranchoffice",
+    wholesale: "rpa_wholesale",
+  }[domain];
 
   const [data, setData] = useState<T | null>(null);
   const [list, setList] = useState<T[]>([]);
-  const [form, setForm] = useState<Partial<T> | null>(null);
+  const [form, setForm] = useState<Partial<T>>({}); // ✅ FIX 1
   const [loading, setLoading] = useState(false);
 
   // -------------------
@@ -77,8 +67,7 @@ export function useCrud<T extends Record<string, any>>(
     }
 
     setData(data);
-    setForm(data);
-
+    setForm(data || {});
     setLoading(false);
   };
 
@@ -148,6 +137,7 @@ export function useCrud<T extends Record<string, any>>(
       return;
     }
 
+    // optional refresh
     await getById(id);
   };
 
@@ -172,7 +162,7 @@ export function useCrud<T extends Record<string, any>>(
     }
 
     setData(null);
-    setForm(null);
+    setForm({});
   };
 
   // -------------------

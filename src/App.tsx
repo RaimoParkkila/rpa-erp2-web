@@ -16,30 +16,28 @@ import Products from "./domains/products/pages/ProductsPage";
 import Storage from "./domains/storage/pages/StoragePage";
 import StorageDetail from "./domains/storage/pages/StorageDetail";
 import StorageCreate from "./domains/storage/pages/StorageCreate";
+
 import Wholesale from "./domains/wholesale/pages/WholesalePage";
 import WholesaleDetail from "./domains/wholesale/pages/WholesaleDetail";
+import WholesaleCreate from "./domains/wholesale/pages/WholesaleCreate"; // ✅ ADD THIS
 
 import Dashboard from "./pages/Dashboard";
-
 import Shop from "./pages/Shop";
 
 import ProductDetail from "./domains/products/pages/ProductDetail";
-
 import Login from "./pages/Login";
-
 import AdminPanel from "./pages/AdminPanel";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import AdminRoute from "./routes/AdminRoute";
 
 import CustomerDetail from "./domains/customers/pages/CustomerDetail";
+import CustomerCreate from "./domains/customers/pages/CustomerCreate";
 
 import InvoicesPage from "./modules/invoices/pages/InvoicesPage";
 import InvoiceDetail from "./modules/invoices/pages/InvoiceDetail";
 
 import { supabase } from "./services/supabase";
-import CustomerCreate from "./domains/customers/pages/CustomerCreate";
- 
 
 function Layout() {
   const location = useLocation();
@@ -55,10 +53,9 @@ function Layout() {
     await supabase.auth.signOut();
     navigate("/login");
   };
-    console.log("API KEY:", import.meta.env.VITE_API_KEY);
+
   return (
     <div style={{ display: "flex", height: "100vh" }}>
-      {/* SIDEBAR */}
       <aside
         style={{
           width: "240px",
@@ -69,7 +66,7 @@ function Layout() {
           flexDirection: "column",
         }}
       >
-        <div>RPA ERP</div>
+        RPA ERP
 
         <nav
           style={{
@@ -109,7 +106,6 @@ function Layout() {
         </div>
       </aside>
 
-      {/* MAIN */}
       <main style={{ flex: 1, padding: "20px", overflow: "auto" }}>
         <Outlet />
       </main>
@@ -121,45 +117,47 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-
         {/* LOGIN */}
         <Route path="/login" element={<Login />} />
 
         {/* LAYOUT */}
         <Route element={<Layout />}>
-          
           {/* PROTECTED */}
           <Route element={<ProtectedRoute />}>
-
             <Route path="/" element={<Dashboard />} />
 
+            {/* CUSTOMERS */}
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:id" element={<CustomerDetail />} />
             <Route path="/customers/new" element={<CustomerCreate />} />
 
+            {/* PRODUCTS */}
             <Route path="/products" element={<Products />} />
             <Route path="/products/:id" element={<ProductDetail />} />
 
+            {/* INVOICES */}
             <Route path="/invoices" element={<InvoicesPage />} />
             <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
+            {/* STORAGE */}
             <Route path="/storage" element={<Storage />} />
+            <Route path="/storage/new" element={<StorageCreate />} />
             <Route path="/storage/:id" element={<StorageDetail />} />
-            <Route path="/customers/new" element={<StorageCreate />} />
 
+            {/* WHOLESALE (FIXED ORDER + CREATE ADDED) */}
             <Route path="/wholesale" element={<Wholesale />} />
+            <Route path="/wholesale/new" element={<WholesaleCreate />} /> {/* ✅ FIX */}
             <Route path="/wholesale/:id" element={<WholesaleDetail />} />
 
+            {/* SHOP */}
             <Route path="/shop" element={<Shop />} />
             <Route path="/shop/:id" element={<ProductDetail />} />
-
           </Route>
 
           {/* ADMIN */}
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<AdminPanel />} />
           </Route>
-
         </Route>
       </Routes>
     </BrowserRouter>

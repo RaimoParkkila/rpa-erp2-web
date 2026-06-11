@@ -2,37 +2,41 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCrud } from "../../../hooks/useCrud";
 
-type StorageBranch = {
-  branchofficename: string;
+type Wholesale = {
+  companyname: string;
+  contactperson: string;
   streetaddress: string;
-  zipcode: string;
+  zip_code: string;
   city: string;
   country: string;
   email: string;
   phone1: string;
+  www_page: string;
   activated_date: string;
 };
 
-export default function StorageCreate(): JSX.Element {
+export default function WholesaleCreate(): JSX.Element {
   const navigate = useNavigate();
 
-  const { create } = useCrud<StorageBranch>({
-    domain: "storage",
+  const { create } = useCrud<Wholesale>({
+    domain: "wholesale",
     enableTenant: false,
   });
 
-  const [form, setForm] = useState<Partial<StorageBranch>>({
-    branchofficename: "",
+  const [form, setForm] = useState<Partial<Wholesale>>({
+    companyname: "",
+    contactperson: "",
     streetaddress: "",
-    zipcode: "",
+    zip_code: "",
     city: "",
     country: "",
     email: "",
     phone1: "",
+    www_page: "",
     activated_date: "",
   });
 
-  function setField(field: keyof StorageBranch, value: string) {
+  function setField(field: keyof Wholesale, value: string) {
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -40,8 +44,14 @@ export default function StorageCreate(): JSX.Element {
   }
 
   async function handleSave() {
-    await create(form);
-    navigate("/storage");
+    const result = await create(form);
+
+    if (!result) {
+      alert("Save failed (check console)");
+      return;
+    }
+
+    navigate("/wholesale");
   }
 
   const inputStyle: React.CSSProperties = {
@@ -56,32 +66,35 @@ export default function StorageCreate(): JSX.Element {
 
   return (
     <div style={{ color: "white" }}>
-      <h1>New Storage Branch</h1>
+      <h1>New Wholesale</h1>
 
       <div style={{ marginTop: 20 }}>
-        <label>Branch Name</label>
+        <label>Company Name</label>
         <input
           style={inputStyle}
-          value={form.branchofficename || ""}
-          onChange={(e) =>
-            setField("branchofficename", e.target.value)
-          }
+          value={form.companyname || ""}
+          onChange={(e) => setField("companyname", e.target.value)}
+        />
+
+        <label>Contact Person</label>
+        <input
+          style={inputStyle}
+          value={form.contactperson || ""}
+          onChange={(e) => setField("contactperson", e.target.value)}
         />
 
         <label>Street Address</label>
         <input
           style={inputStyle}
           value={form.streetaddress || ""}
-          onChange={(e) =>
-            setField("streetaddress", e.target.value)
-          }
+          onChange={(e) => setField("streetaddress", e.target.value)}
         />
 
         <label>ZIP Code</label>
         <input
           style={inputStyle}
-          value={form.zipcode || ""}
-          onChange={(e) => setField("zipcode", e.target.value)}
+          value={form.zip_code || ""}
+          onChange={(e) => setField("zip_code", e.target.value)}
         />
 
         <label>City</label>
@@ -112,21 +125,25 @@ export default function StorageCreate(): JSX.Element {
           onChange={(e) => setField("phone1", e.target.value)}
         />
 
+        <label>Website</label>
+        <input
+          style={inputStyle}
+          value={form.www_page || ""}
+          onChange={(e) => setField("www_page", e.target.value)}
+        />
+
         <label>Activated Date</label>
         <input
           type="date"
           style={inputStyle}
           value={form.activated_date || ""}
-          onChange={(e) =>
-            setField("activated_date", e.target.value)
-          }
+          onChange={(e) => setField("activated_date", e.target.value)}
         />
       </div>
 
       <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
         <button onClick={handleSave}>Save</button>
-
-        <button onClick={() => navigate("/storage")}>
+        <button onClick={() => navigate("/wholesale")}>
           Cancel
         </button>
       </div>

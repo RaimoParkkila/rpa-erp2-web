@@ -1,225 +1,146 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../../../services/supabase";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useCrud } from "../../../hooks/useCrud";
 
-type Wholesale = {
+type StorageBranch = {
   id: number;
-  companyname: string;
-  zip_code: string;
+  branchofficename: string;
+  streetaddress: string;
+  zipcode: string;
   city: string;
   country: string;
   email: string;
   phone1: string;
-  streetaddress: string;
-  contactperson: string;
-  www_page: string;
-  wholesale_id: number;
+  activated_date: string;
 };
 
-export default function WholesaleDetail() {
+export default function StorageDetail(): JSX.Element {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [item, setItem] = useState<Wholesale | null>(null);
-  const [form, setForm] = useState<Wholesale | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
+  const {
+    data,
+    form,
+    setForm,
+    loading,
+    getById,
+    update,
+    remove,
+  } = useCrud({
+    domain: "wholesale",
+    enableTenant: false,
+  });
 
   useEffect(() => {
-    fetchItem();
+    if (id) getById(Number(id));
   }, [id]);
 
-  async function fetchItem() {
-    if (!id) return;
+  if (loading) return <div>Loading...</div>;
+  if (!data || !form) return <div>Storage location not found</div>;
 
-    setLoading(true);
+  const handleSave = async () => {
+    await update(data.id, form);
+    alert("Saved");
+  };
 
-    const { data, error } = await supabase
-      .from("rpa_wholesale")
-      .select("*")
-      .eq("id", Number(id))
-      .single();
+  const handleDelete = async () => {
+    const confirmed = window.confirm("Delete this storage location?");
+    if (!confirmed) return;
 
-    if (error) {
-      console.error(error);
-      setItem(null);
-    } else {
-      setItem(data);
-      setForm(data);
-    }
+    await remove(data.id);
+    navigate("/storage");
+  };
 
-    setLoading(false);
-  }
-
-  async function save() {
-    if (!form || !id) return;
-
-    const { error } = await supabase
-      .from("rpa_wholesale")
-      .update({
-        companyname: form.companyname,
-        city: form.city,
-        country: form.country,
-        zip_code: form.zip_code,
-        email: form.email,
-        phone1: form.phone1,
-        streetaddress: form.streetaddress,
-        contactperson: form.contactperson,
-        www_page: form.www_page,
-      })
-      .eq("id", Number(id));
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setEditMode(false);
-    fetchItem();
-  }
-
-  async function remove() {
-    if (!id) return;
-
-    const ok = confirm("Delete this wholesale?");
-    if (!ok) return;
-
-    const { error } = await supabase
-      .from("rpa_wholesale")
-      .delete()
-      .eq("id", Number(id));
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    navigate("/wholesale");
-  }
-
-  if (loading) return <p style={{ color: "white" }}>Loading...</p>;
-  if (!item || !form) return <p style={{ color: "white" }}>Not found</p>;
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 6,
+    border: "1px solid #333",
+    background: "#111",
+    color: "white",
+  };
 
   return (
-    <div style={{ color: "white", padding: 20 }}>
-      <button onClick={() => navigate(-1)}>← Back</button>
+    <div style={{ marginTop: 20, color: "white" }}>
+      <label>Branch Name</label>
+      <input
+        style={inputStyle}
+        value={form.branchofficename || ""}
+        onChange={(e) =>
+          setForm({ ...form, branchofficename: e.target.value })
+        }
+      />
 
-      <h1 style={{ marginTop: 10 }}>{item.companyname}</h1>
+      <label>Street Address</label>
+      <input
+        style={inputStyle}
+        value={form.streetaddress || ""}
+        onChange={(e) =>
+          setForm({ ...form, streetaddress: e.target.value })
+        }
+      />
 
-      {!editMode ? (
-        <>
-          <div style={{ marginTop: 20, lineHeight: 1.8 }}>
-            <div><b>City:</b> {item.city}</div>
-            <div><b>Country:</b> {item.country}</div>
-            <div><b>ZIP:</b> {item.zip_code}</div>
-            <div><b>Email:</b> {item.email}</div>
-            <div><b>Phone:</b> {item.phone1}</div>
-            <div><b>Contact:</b> {item.contactperson}</div>
-            <div><b>Website:</b> {item.www_page}</div>
-            <div><b>Address:</b> {item.streetaddress}</div>
-          </div>
+      <label>ZIP Code</label>
+      <input
+        style={inputStyle}
+        value={form.zipcode || ""}
+        onChange={(e) =>
+          setForm({ ...form, zipcode: e.target.value })
+        }
+      />
 
-          <div style={{ marginTop: 20 }}>
-            <button onClick={() => setEditMode(true)}>Edit</button>
+      <label>City</label>
+      <input
+        style={inputStyle}
+        value={form.city || ""}
+        onChange={(e) =>
+          setForm({ ...form, city: e.target.value })
+        }
+      />
 
-            <button
-              onClick={remove}
-              style={{ marginLeft: 10, color: "red" }}
-            >
-              Delete
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div style={{ display: "grid", gap: 8, marginTop: 20 }}>
-            <input
-              value={form.companyname}
-              onChange={(e) =>
-                setForm({ ...form, companyname: e.target.value })
-              }
-              placeholder="Company name"
-            />
+      <label>Country</label>
+      <input
+        style={inputStyle}
+        value={form.country || ""}
+        onChange={(e) =>
+          setForm({ ...form, country: e.target.value })
+        }
+      />
 
-            <input
-              value={form.city}
-              onChange={(e) =>
-                setForm({ ...form, city: e.target.value })
-              }
-              placeholder="City"
-            />
+      <label>Email</label>
+      <input
+        style={inputStyle}
+        value={form.email || ""}
+        onChange={(e) =>
+          setForm({ ...form, email: e.target.value })
+        }
+      />
 
-            <input
-              value={form.country}
-              onChange={(e) =>
-                setForm({ ...form, country: e.target.value })
-              }
-              placeholder="Country"
-            />
+      <label>Phone</label>
+      <input
+        style={inputStyle}
+        value={form.phone1 || ""}
+        onChange={(e) =>
+          setForm({ ...form, phone1: e.target.value })
+        }
+      />
 
-            <input
-              value={form.zip_code}
-              onChange={(e) =>
-                setForm({ ...form, zip_code: e.target.value })
-              }
-              placeholder="ZIP"
-            />
+      <label>Activated Date</label>
+      <input
+        type="date"
+        style={inputStyle}
+        value={form.activated_date || ""}
+        onChange={(e) =>
+          setForm({ ...form, activated_date: e.target.value })
+        }
+      />
 
-            <input
-              value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
-              placeholder="Email"
-            />
-
-            <input
-              value={form.phone1}
-              onChange={(e) =>
-                setForm({ ...form, phone1: e.target.value })
-              }
-              placeholder="Phone"
-            />
-
-            <input
-              value={form.contactperson}
-              onChange={(e) =>
-                setForm({ ...form, contactperson: e.target.value })
-              }
-              placeholder="Contact person"
-            />
-
-            <input
-              value={form.www_page}
-              onChange={(e) =>
-                setForm({ ...form, www_page: e.target.value })
-              }
-              placeholder="Website"
-            />
-
-            <input
-              value={form.streetaddress}
-              onChange={(e) =>
-                setForm({ ...form, streetaddress: e.target.value })
-              }
-              placeholder="Address"
-            />
-          </div>
-
-          <div style={{ marginTop: 20 }}>
-            <button onClick={save}>Save</button>
-            <button
-              onClick={() => {
-                setEditMode(false);
-                setForm(item);
-              }}
-              style={{ marginLeft: 10 }}
-            >
-              Cancel
-            </button>
-          </div>
-        </>
-      )}
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button onClick={handleSave}>Save</button>
+        <button onClick={handleDelete}>Delete</button>
+        <button onClick={() => navigate("/storage")}>Back</button>
+      </div>
     </div>
   );
 }

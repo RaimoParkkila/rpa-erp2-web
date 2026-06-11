@@ -18,6 +18,7 @@ type StorageBranch = {
 export default function Storage(): JSX.Element {
   const [branches, setBranches] = useState<StorageBranch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const navigate = useNavigate();
 
@@ -53,51 +54,86 @@ export default function Storage(): JSX.Element {
     fontSize: 13,
   };
 
+  const filteredBranches = branches.filter((b) => {
+    const q = search.toLowerCase();
+    return (
+      b.branchofficename?.toLowerCase().includes(q) ||
+      b.city?.toLowerCase().includes(q) ||
+      b.country?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div style={{ color: "white" }}>
       {/* HEADER */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0 }}>Storage</h1>
+      <div style={{ marginTop: 12 }}>
+        <button onClick={() => navigate("/storage/new")}>
+          + New Branch
+        </button>
+      </div>
 
-        <div style={{ marginTop: 12 }}>
-          <button onClick={() => navigate("/storage/new")}>
-            + New Branch
-          </button>
+      <div style={{ marginTop: 18, opacity: 0.6 }}>
+        Branch offices & warehouse locations
+      </div>
+
+      {/* SEARCH */}
+      <input
+        placeholder="Search city, branch, country..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          marginTop: 10,
+          padding: 8,
+          width: "100%",
+          maxWidth: 320,
+          borderRadius: 6,
+          border: "1px solid #333",
+          background: "#111",
+          color: "white",
+        }}
+      />
+
+      {/* KPI ROW */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 15,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={cardStyle}>
+          <div style={{ opacity: 0.7 }}>Branches</div>
+          <div style={{ fontSize: 26, fontWeight: "bold" }}>
+            {branches.length}
+          </div>
         </div>
 
-        <div style={{ marginTop: 18, opacity: 0.6 }}>
-          Branch offices & warehouse locations
+        <div style={cardStyle}>
+          <div style={{ opacity: 0.7 }}>Countries</div>
+          <div style={{ fontSize: 26, fontWeight: "bold" }}>
+            {new Set(branches.map((b) => b.country)).size}
+          </div>
         </div>
 
-        {/* KPI ROW */}
-        <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
-          <div style={cardStyle}>
-            <div style={{ opacity: 0.7 }}>Branches</div>
-            <div style={{ fontSize: 26, fontWeight: "bold" }}>
-              {branches.length}
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <div style={{ opacity: 0.7 }}>Countries</div>
-            <div style={{ fontSize: 26, fontWeight: "bold" }}>
-              {new Set(branches.map((b) => b.country)).size}
-            </div>
-          </div>
-
-          <div style={cardStyle}>
-            <div style={{ opacity: 0.7 }}>Cities</div>
-            <div style={{ fontSize: 26, fontWeight: "bold" }}>
-              {new Set(branches.map((b) => b.city)).size}
-            </div>
+        <div style={cardStyle}>
+          <div style={{ opacity: 0.7 }}>Cities</div>
+          <div style={{ fontSize: 26, fontWeight: "bold" }}>
+            {new Set(branches.map((b) => b.city)).size}
           </div>
         </div>
       </div>
 
-      {loading && <div>Loading...</div>}
+      {/* LOADING */}
+      {loading && (
+        <div style={{ opacity: 0.6, marginTop: 20 }}>
+          Loading storage data...
+        </div>
+      )}
 
+      {/* TABLE */}
       {!loading && (
-        <div style={{ overflowX: "auto" }}>
+        <div style={{ overflowX: "auto", marginTop: 20 }}>
           <table
             style={{
               width: "100%",
@@ -120,7 +156,7 @@ export default function Storage(): JSX.Element {
             </thead>
 
             <tbody>
-              {branches.map((b) => (
+              {filteredBranches.map((b) => (
                 <tr
                   key={b.id}
                   onClick={() => navigate(`/storage/${b.id}`)}
