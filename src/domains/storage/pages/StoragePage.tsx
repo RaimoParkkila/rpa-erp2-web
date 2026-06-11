@@ -15,9 +15,10 @@ type StorageBranch = {
   streetaddress: string;
 };
 
-export default function Storage() {
+export default function Storage(): JSX.Element {
   const [branches, setBranches] = useState<StorageBranch[]>([]);
   const [loading, setLoading] = useState(true);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,13 +48,6 @@ export default function Storage() {
     borderRadius: 10,
   };
 
-  const th: React.CSSProperties = {
-    textAlign: "left",
-    padding: 10,
-    fontSize: 12,
-    opacity: 0.7,
-  };
-
   const td: React.CSSProperties = {
     padding: 10,
     fontSize: 13,
@@ -65,43 +59,42 @@ export default function Storage() {
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ margin: 0 }}>Storage</h1>
 
+        <div style={{ marginTop: 12 }}>
+          <button onClick={() => navigate("/storage/new")}>
+            + New Branch
+          </button>
+        </div>
+
         <div style={{ marginTop: 18, opacity: 0.6 }}>
           Branch offices & warehouse locations
         </div>
-      </div>
 
-      {/* KPI ROW */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 10,
-          marginBottom: 20,
-        }}
-      >
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Branches</div>
-          <div style={{ fontSize: 26, fontWeight: "bold" }}>
-            {branches.length}
+        {/* KPI ROW */}
+        <div style={{ display: "flex", gap: 10, marginTop: 15 }}>
+          <div style={cardStyle}>
+            <div style={{ opacity: 0.7 }}>Branches</div>
+            <div style={{ fontSize: 26, fontWeight: "bold" }}>
+              {branches.length}
+            </div>
           </div>
-        </div>
 
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Countries</div>
-          <div style={{ fontSize: 26, fontWeight: "bold" }}>
-            {new Set(branches.map((b) => b.country)).size}
+          <div style={cardStyle}>
+            <div style={{ opacity: 0.7 }}>Countries</div>
+            <div style={{ fontSize: 26, fontWeight: "bold" }}>
+              {new Set(branches.map((b) => b.country)).size}
+            </div>
           </div>
-        </div>
 
-        <div style={cardStyle}>
-          <div style={{ opacity: 0.7 }}>Cities</div>
-          <div style={{ fontSize: 26, fontWeight: "bold" }}>
-            {new Set(branches.map((b) => b.city)).size}
+          <div style={cardStyle}>
+            <div style={{ opacity: 0.7 }}>Cities</div>
+            <div style={{ fontSize: 26, fontWeight: "bold" }}>
+              {new Set(branches.map((b) => b.city)).size}
+            </div>
           </div>
         </div>
       </div>
 
-      {loading && <p>Loading...</p>}
+      {loading && <div>Loading...</div>}
 
       {!loading && (
         <div style={{ overflowX: "auto" }}>
@@ -116,13 +109,13 @@ export default function Storage() {
           >
             <thead>
               <tr style={{ background: "#1a1a1a" }}>
-                <th style={th}>Name</th>
-                <th style={th}>City</th>
-                <th style={th}>Country</th>
-                <th style={th}>ZIP</th>
-                <th style={th}>Activated</th>
-                <th style={th}>Email</th>
-                <th style={th}>Phone</th>
+                <th style={td}>Name</th>
+                <th style={td}>City</th>
+                <th style={td}>Country</th>
+                <th style={td}>ZIP</th>
+                <th style={td}>Activated</th>
+                <th style={td}>Email</th>
+                <th style={td}>Phone</th>
               </tr>
             </thead>
 
@@ -146,13 +139,11 @@ export default function Storage() {
                   <td style={td}>{b.city}</td>
                   <td style={td}>{b.country}</td>
                   <td style={td}>{b.zipcode}</td>
-
                   <td style={td}>
                     {b.activated_date
                       ? formatDateES(b.activated_date)
                       : "-"}
                   </td>
-
                   <td style={td}>{b.email}</td>
                   <td style={td}>{b.phone1}</td>
                 </tr>

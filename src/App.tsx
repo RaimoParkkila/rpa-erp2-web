@@ -15,6 +15,7 @@ import Products from "./domains/products/pages/ProductsPage";
 
 import Storage from "./domains/storage/pages/StoragePage";
 import StorageDetail from "./domains/storage/pages/StorageDetail";
+import StorageCreate from "./domains/storage/pages/StorageCreate";
 import Wholesale from "./domains/wholesale/pages/WholesalePage";
 import WholesaleDetail from "./domains/wholesale/pages/WholesaleDetail";
 
@@ -144,6 +145,7 @@ export default function App() {
 
             <Route path="/storage" element={<Storage />} />
             <Route path="/storage/:id" element={<StorageDetail />} />
+            <Route path="/customers/new" element={<StorageCreate />} />
 
             <Route path="/wholesale" element={<Wholesale />} />
             <Route path="/wholesale/:id" element={<WholesaleDetail />} />

@@ -9,14 +9,14 @@ function getTenantId(): string | null {
 }
 
 /**
- * Domain → table mapping (type-safe)
+ * Domain → table mapping
  */
 type DomainTables = {
   customers: "rpa_customer";
   products: "rpa_shop_product";
   invoices: "rpaheaderofinvoice";
   invoice_lines: "rpa_invoice_line";
-  storage: "rpa_storage";
+  storage: "rpa_storagebranchoffice";
   wholesale: "rpa_wholesale";
 };
 
@@ -35,13 +35,13 @@ export function useCrud<T extends Record<string, any>>(
 
   const tenantId = getTenantId();
 
-  const table: DomainTables[DomainName] = (() => {
+  const table = ((): DomainTables[DomainName] => {
     const map: DomainTables = {
       customers: "rpa_customer",
       products: "rpa_shop_product",
       invoices: "rpaheaderofinvoice",
       invoice_lines: "rpa_invoice_line",
-      storage: "rpa_storage",
+      storage: "rpa_storagebranchoffice",
       wholesale: "rpa_wholesale",
     };
 
@@ -70,12 +70,14 @@ export function useCrud<T extends Record<string, any>>(
 
     const { data, error } = await query.single();
 
-    if (!error) {
-      setData(data);
-      setForm(data);
-    } else {
-      console.error(error);
+    if (error) {
+      console.error("getById error:", error);
+      setLoading(false);
+      return;
     }
+
+    setData(data);
+    setForm(data);
 
     setLoading(false);
   };
@@ -94,12 +96,13 @@ export function useCrud<T extends Record<string, any>>(
 
     const { data, error } = await query;
 
-    if (!error) {
-      setList(data || []);
-    } else {
-      console.error(error);
+    if (error) {
+      console.error("getAll error:", error);
+      setLoading(false);
+      return;
     }
 
+    setList(data || []);
     setLoading(false);
   };
 
@@ -118,7 +121,7 @@ export function useCrud<T extends Record<string, any>>(
       .single();
 
     if (error) {
-      console.error(error);
+      console.error("create error:", error);
       return null;
     }
 
@@ -141,7 +144,7 @@ export function useCrud<T extends Record<string, any>>(
     const { error } = await query;
 
     if (error) {
-      console.error(error);
+      console.error("update error:", error);
       return;
     }
 
@@ -164,11 +167,12 @@ export function useCrud<T extends Record<string, any>>(
     const { error } = await query;
 
     if (error) {
-      console.error(error);
+      console.error("delete error:", error);
       return;
     }
 
     setData(null);
+    setForm(null);
   };
 
   // -------------------
@@ -186,7 +190,6 @@ export function useCrud<T extends Record<string, any>>(
     form,
     setForm,
     loading,
-
     getById,
     getAll,
     create,

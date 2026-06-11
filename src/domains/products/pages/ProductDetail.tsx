@@ -1,157 +1,178 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ProductService } from "../services/ProductService";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useCrud } from "../../../hooks/useCrud";
 
-type Product = {
+type StorageBranch = {
   id: number;
-  productname: string;
-  brand: string;
-  model: string;
-  price: number;
-  image_url?: string | null;
+  branchofficename: string;
+  streetaddress: string;
+  zipcode: string;
+  city: string;
+  country: string;
+  email: string;
+  phone1: string;
+  activated_date: string;
 };
 
-export default function ProductDetail() {
+export default function StorageDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  async function fetchProduct() {
-    setLoading(true);
-
-    try {
-      const data = await ProductService.getById(Number(id));
-      setProduct(data);
-    } catch (error) {
-      console.error(error);
-    }
-
-    setLoading(false);
-  }
+  const {
+    data,
+    form,
+    setForm,
+    loading,
+    getById,
+    update,
+    remove,
+  } = useCrud({
+    domain: "storage",
+    enableTenant: false,
+  });
 
   useEffect(() => {
-    fetchProduct();
+    if (id) {
+      getById(Number(id));
+    }
   }, [id]);
 
-  if (loading) return <p>Loading...</p>;
-  if (!product) return <p>Product not found</p>;
+  if (loading) return "Loading...";
+  if (!data || !form) return "Storage location not found";
+
+  const handleSave = async () => {
+    await update(data.id, form);
+    alert("Saved");
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      "Delete this storage location?"
+    );
+
+    if (!confirmed) return;
+
+    await remove(data.id);
+    navigate("/storage");
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: 10,
+    marginBottom: 12,
+    borderRadius: 6,
+    border: "1px solid #333",
+    background: "#111",
+    color: "white",
+  };
 
   return (
-    <div style={{ padding: 20, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ marginTop: 20 }}>
+      <label>Branch Name</label>
+      <input
+        style={inputStyle}
+        value={form.branchofficename || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            branchofficename: e.target.value,
+          })
+        }
+      />
 
-      {/* NAV */}
-      <div style={{
-        display: "flex",
-        gap: 10,
-        marginBottom: 20
-      }}>
-        <button onClick={() => navigate("/products")}>
-          ← Back to Products
+      <label>Street Address</label>
+      <input
+        style={inputStyle}
+        value={form.streetaddress || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            streetaddress: e.target.value,
+          })
+        }
+      />
+
+      <label>ZIP Code</label>
+      <input
+        style={inputStyle}
+        value={form.zipcode || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            zipcode: e.target.value,
+          })
+        }
+      />
+
+      <label>City</label>
+      <input
+        style={inputStyle}
+        value={form.city || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            city: e.target.value,
+          })
+        }
+      />
+
+      <label>Country</label>
+      <input
+        style={inputStyle}
+        value={form.country || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            country: e.target.value,
+          })
+        }
+      />
+
+      <label>Email</label>
+      <input
+        style={inputStyle}
+        value={form.email || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            email: e.target.value,
+          })
+        }
+      />
+
+      <label>Phone</label>
+      <input
+        style={inputStyle}
+        value={form.phone1 || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            phone1: e.target.value,
+          })
+        }
+      />
+
+      <label>Activated Date</label>
+      <input
+        type="date"
+        style={inputStyle}
+        value={form.activated_date || ""}
+        onChange={(e) =>
+          setForm({
+            ...form,
+            activated_date: e.target.value,
+          })
+        }
+      />
+
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <button onClick={handleSave}>Save</button>
+
+        <button onClick={handleDelete}>Delete</button>
+
+        <button onClick={() => navigate("/storage")}>
+          Back
         </button>
-
-        <button onClick={() => navigate("/shop")}>
-          ← Shop
-        </button>
-      </div>
-
-      {/* HEADER */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 20
-      }}>
-        <div>
-          <h1>{product.productname}</h1>
-          <p style={{ color: "#666" }}>
-            {product.brand} / {product.model}
-          </p>
-        </div>
-
-        <div style={{
-          textAlign: "right"
-        }}>
-          <div style={{ fontSize: 20, fontWeight: "bold" }}>
-            €{product.price}
-          </div>
-
-          <div style={{ fontSize: 12, color: "#888" }}>
-            Product ID: {product.id}
-          </div>
-        </div>
-      </div>
-
-      {/* MAIN GRID */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 300px",
-        gap: 20
-      }}>
-
-        {/* LEFT: IMAGE + INFO */}
-        <div style={{
-          background: "#1e1e1e",
-          padding: 20,
-          borderRadius: 10
-        }}>
-          {product.image_url && (
-            <img
-              src={product.image_url}
-              style={{
-                width: "100%",
-                maxHeight: 400,
-                objectFit: "cover",
-                borderRadius: 10,
-                marginBottom: 15
-              }}
-            />
-          )}
-
-          <h3>Product Overview</h3>
-
-          <p><b>Name:</b> {product.productname}</p>
-          <p><b>Brand:</b> {product.brand}</p>
-          <p><b>Model:</b> {product.model}</p>
-          <p><b>Price:</b> €{product.price}</p>
-        </div>
-
-        {/* RIGHT: ERP PANEL */}
-        <div style={{
-          background: "#1e1e1e",
-          padding: 20,
-          borderRadius: 10,
-          height: "fit-content"
-        }}>
-          <h3>ERP Controls</h3>
-
-          <button style={{ width: "100%", marginBottom: 10 }}>
-            ✏️ Edit Product
-          </button>
-
-          <button style={{ width: "100%", marginBottom: 10 }}>
-            💰 Update Price
-          </button>
-
-          <button style={{
-            width: "100%",
-            marginBottom: 10,
-            color: "red"
-          }}>
-            ⛔ Deactivate
-          </button>
-
-          <hr style={{ margin: "15px 0" }} />
-
-          <h4>Business Data</h4>
-
-          <p style={{ fontSize: 12 }}>
-            • Invoices: (future link)<br />
-            • Sales: (future stats)<br />
-            • Stock: (future module)
-          </p>
-        </div>
       </div>
     </div>
   );
