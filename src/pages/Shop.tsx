@@ -271,6 +271,7 @@ export default function Shop() {
             </div>
 
             {/* CART */}
+            {/* CART */}
             <div>
                 <h2>Cart</h2>
 
@@ -281,28 +282,72 @@ export default function Shop() {
                             e.target.value ? Number(e.target.value) : null
                         )
                     }
+                    style={{ width: "100%", marginBottom: 10 }}
                 >
                     <option value="">-- customer --</option>
-                    {customers.map(c => (
+                    {customers.map((c) => (
                         <option key={c.id} value={c.id}>
                             {c.firstname}
                         </option>
                     ))}
                 </select>
 
-                {cart.map(item => (
-                    <div key={item.id}>
-                        {item.productname} {item.quantity}
-                        <button onClick={() => removeOne(item.id)}>−</button>
-                        <button onClick={() =>
-                            addToCart(products.find(p => p.id === item.id)!)
-                        }>+</button>
-                    </div>
-                ))}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {cart.map((item) => (
+                        <div
+                            key={item.id}
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: 10,
+                                background: "#1a1a1a",
+                                borderRadius: 8,
+                            }}
+                        >
+                            {/* NAME */}
+                            <div style={{ flex: 1 }}>{item.productname}</div>
 
-                <h3>Total: {total} €</h3>
+                            {/* QTY CONTROLS */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <button onClick={() => removeOne(item.id)}>-</button>
+
+                                <span style={{ minWidth: 20, textAlign: "center" }}>
+                                    {item.quantity}
+                                </span>
+
+                                <button
+                                    onClick={() =>
+                                        addToCart(products.find((p) => p.id === item.id)!)
+                                    }
+                                >
+                                    +
+                                </button>
+                            </div>
+
+                            {/* PRICE */}
+                            <div style={{ width: 80, textAlign: "right" }}>
+                                {(item.price * item.quantity).toFixed(2)} €
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* TOTAL BOX */}
+                <div
+                    style={{
+                        marginTop: 15,
+                        padding: 12,
+                        background: "#111",
+                        border: "1px solid #333",
+                        borderRadius: 8,
+                    }}
+                >
+                    <strong>Total: {total.toFixed(2)} €</strong>
+                </div>
 
                 <button
+                    style={{ marginTop: 10, width: "100%" }}
                     disabled={!selectedCustomer || cart.length === 0}
                     onClick={createInvoice}
                 >

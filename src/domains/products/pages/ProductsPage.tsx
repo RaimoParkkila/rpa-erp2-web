@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../services/supabase";
 import { useNavigate } from "react-router-dom";
 import { ProductService } from "../services/ProductService";
+
 type Product = {
   id: number;
   productname: string;
@@ -19,7 +20,6 @@ export default function Products() {
   const [brandFilter, setBrandFilter] = useState("ALL");
   const [minPrice, setMinPrice] = useState<number | "">("");
   const [maxPrice, setMaxPrice] = useState<number | "">("");
-
   const [sort, setSort] = useState("NONE");
   const [search, setSearch] = useState("");
 
@@ -37,9 +37,6 @@ export default function Products() {
 
   const [imageFile, setImageFile] = useState<File | null>(null);
 
-  const [hoverImage, setHoverImage] = useState<string | null>(null);
-  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
-
   const removeBrandFilter = () => setBrandFilter("ALL");
   const removeMinPrice = () => setMinPrice("");
   const removeMaxPrice = () => setMaxPrice("");
@@ -50,14 +47,12 @@ export default function Products() {
 
   async function fetchProducts() {
     setLoading(true);
-
     try {
       const data = await ProductService.getAll();
       setProducts(data);
     } catch (error) {
       console.error(error);
     }
-
     setLoading(false);
   }
 
@@ -67,12 +62,10 @@ export default function Products() {
 
     try {
       await ProductService.delete(id);
+      setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch (error) {
       console.error(error);
-      return;
     }
-
-    setProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
   async function saveEdit() {
@@ -88,10 +81,7 @@ export default function Products() {
       })
       .eq("id", editingId);
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) return console.error(error);
 
     setEditingId(null);
     setEditProduct(null);
@@ -108,10 +98,7 @@ export default function Products() {
         .from("product-images")
         .upload(fileName, imageFile);
 
-      if (uploadError) {
-        console.error(uploadError);
-        return;
-      }
+      if (uploadError) return console.error(uploadError);
 
       const { data } = supabase.storage
         .from("product-images")
@@ -128,18 +115,9 @@ export default function Products() {
       image_url: imageUrl,
     });
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) return console.error(error);
 
-    setNewProduct({
-      productname: "",
-      brand: "",
-      model: "",
-      price: 0,
-    });
-
+    setNewProduct({ productname: "", brand: "", model: "", price: 0 });
     setImageFile(null);
     fetchProducts();
   }
@@ -179,71 +157,43 @@ export default function Products() {
 
   return (
     <div style={{ padding: 20, background: "#0f0f0f", color: "white" }}>
-      <h2>Products</h2>
+      <h2 style={{ marginBottom: 15 }}>Products</h2>
 
       {/* ADD */}
-      <div style={{ marginBottom: 20 }}>
-        <input
-          placeholder="Name"
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
+        <input style={inputStyle} placeholder="Name"
           value={newProduct.productname}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, productname: e.target.value })
-          }
+          onChange={(e) => setNewProduct({ ...newProduct, productname: e.target.value })}
         />
-
-        <input
-          placeholder="Brand"
+        <input style={inputStyle} placeholder="Brand"
           value={newProduct.brand}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, brand: e.target.value })
-          }
+          onChange={(e) => setNewProduct({ ...newProduct, brand: e.target.value })}
         />
-
-        <input
-          placeholder="Model"
+        <input style={inputStyle} placeholder="Model"
           value={newProduct.model}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, model: e.target.value })
-          }
+          onChange={(e) => setNewProduct({ ...newProduct, model: e.target.value })}
         />
-
-        <input
-          type="number"
+        <input style={inputStyle} type="number"
           value={newProduct.price}
-          onChange={(e) =>
-            setNewProduct({ ...newProduct, price: Number(e.target.value) })
-          }
+          onChange={(e) => setNewProduct({ ...newProduct, price: Number(e.target.value) })}
         />
-
-        <input
-          type="file"
-          onChange={(e) =>
-            e.target.files && setImageFile(e.target.files[0])
-          }
-        />
-
-        <button onClick={addProduct}>Add</button>
+        <input type="file" onChange={(e) => e.target.files && setImageFile(e.target.files[0])} />
+        <button style={btnStyle} onClick={addProduct}>Add</button>
       </div>
 
-      {/* FILTER + SORT */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 15, flexWrap: "wrap" }}>
-        <input
-          placeholder="Search"
+      {/* FILTER */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 15 }}>
+        <input style={inputStyle} placeholder="Search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <select
-          value={brandFilter}
-          onChange={(e) => setBrandFilter(e.target.value)}
-        >
+        <select style={inputStyle} value={brandFilter} onChange={(e) => setBrandFilter(e.target.value)}>
           <option value="ALL">ALL</option>
-          {brands.map((b) => (
-            <option key={b}>{b}</option>
-          ))}
+          {brands.map((b) => <option key={b}>{b}</option>)}
         </select>
 
-        <select value={sort} onChange={(e) => setSort(e.target.value)}>
+        <select style={inputStyle} value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="NONE">No sort</option>
           <option value="PRICE_ASC">Price ↑</option>
           <option value="PRICE_DESC">Price ↓</option>
@@ -251,133 +201,124 @@ export default function Products() {
           <option value="NAME_ZA">Name Z-A</option>
         </select>
 
-        <input
-          placeholder="Min price"
-          type="number"
+        <input style={inputStyle} placeholder="Min price" type="number"
           value={minPrice}
-          onChange={(e) =>
-            setMinPrice(e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setMinPrice(e.target.value === "" ? "" : Number(e.target.value))}
         />
 
-        <input
-          placeholder="Max price"
-          type="number"
+        <input style={inputStyle} placeholder="Max price" type="number"
           value={maxPrice}
-          onChange={(e) =>
-            setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))
-          }
+          onChange={(e) => setMaxPrice(e.target.value === "" ? "" : Number(e.target.value))}
         />
 
-        <button onClick={removeBrandFilter}>Clear brand</button>
-        <button onClick={removeMinPrice}>Clear min</button>
-        <button onClick={removeMaxPrice}>Clear max</button>
+        <button style={btnStyle} onClick={removeBrandFilter}>Clear brand</button>
+        <button style={btnStyle} onClick={removeMinPrice}>Clear min</button>
+        <button style={btnStyle} onClick={removeMaxPrice}>Clear max</button>
       </div>
 
       {/* TABLE */}
       {loading ? (
         <p>Loading...</p>
       ) : (
-        <table width="100%">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Name</th>
-              <th>Brand</th>
-              <th>Model</th>
-              <th>Price</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {sortedProducts.map((p) => (
-              <tr key={p.id}>
-                <td>
-                  {p.image_url ? (
-                    <img
-                      src={p.image_url}
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        objectFit: "cover",
-                        borderRadius: "6px",
-                      }}
-                    />
-                  ) : (
-                    "—"
-                  )}
-                </td>
-
-                <td onClick={() => navigate(`/products/${p.id}`)}>
-                  {p.productname}
-                </td>
-
-                <td>{p.brand}</td>
-                <td>{p.model}</td>
-                <td>€{p.price}</td>
-
-                <td>
-                  <button
-                    onClick={() => {
-                      setEditingId(p.id);
-                      setEditProduct(p);
-                    }}
-                  >
-                    Edit
-                  </button>
-
-                  <button onClick={() => deleteProduct(p.id)}>
-                    Delete
-                  </button>
-                </td>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#1a1a1a" }}>
+                <th style={th}>Image</th>
+                <th style={th}>Name</th>
+                <th style={th}>Brand</th>
+                <th style={th}>Model</th>
+                <th style={th}>Price</th>
+                <th style={th}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {sortedProducts.map((p) => (
+                <tr key={p.id} style={{ borderTop: "1px solid #222" }}>
+                  <td style={td}>
+                    {p.image_url ? (
+                      <img src={p.image_url} style={imgStyle} />
+                    ) : "—"}
+                  </td>
+
+                  <td style={td} onClick={() => navigate(`/products/${p.id}`)}>
+                    {p.productname}
+                  </td>
+
+                  <td style={td}>{p.brand}</td>
+                  <td style={td}>{p.model}</td>
+                  <td style={td}>€{p.price}</td>
+
+                  <td style={td}>
+                    <button style={btnStyle} onClick={() => { setEditingId(p.id); setEditProduct(p); }}>Edit</button>
+                    <button style={btnStyle} onClick={() => deleteProduct(p.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* EDIT */}
       {editingId !== null && (
-        <div style={{ marginTop: 20 }}>
+        <div style={editBox}>
           <h3>Edit Product</h3>
 
-          <input
-            value={editProduct?.productname || ""}
-            onChange={(e) =>
-              setEditProduct({ ...editProduct, productname: e.target.value })
-            }
+          <input style={inputStyle} value={editProduct?.productname || ""}
+            onChange={(e) => setEditProduct({ ...editProduct, productname: e.target.value })}
           />
 
-          <input
-            value={editProduct?.brand || ""}
-            onChange={(e) =>
-              setEditProduct({ ...editProduct, brand: e.target.value })
-            }
+          <input style={inputStyle} value={editProduct?.brand || ""}
+            onChange={(e) => setEditProduct({ ...editProduct, brand: e.target.value })}
           />
 
-          <input
-            value={editProduct?.model || ""}
-            onChange={(e) =>
-              setEditProduct({ ...editProduct, model: e.target.value })
-            }
+          <input style={inputStyle} value={editProduct?.model || ""}
+            onChange={(e) => setEditProduct({ ...editProduct, model: e.target.value })}
           />
 
-          <input
-            type="number"
-            value={editProduct?.price || 0}
-            onChange={(e) =>
-              setEditProduct({
-                ...editProduct,
-                price: Number(e.target.value),
-              })
-            }
+          <input style={inputStyle} type="number" value={editProduct?.price || 0}
+            onChange={(e) => setEditProduct({ ...editProduct, price: Number(e.target.value) })}
           />
 
-          <button onClick={saveEdit}>Save</button>
-          <button onClick={() => setEditingId(null)}>Cancel</button>
+          <button style={btnStyle} onClick={saveEdit}>Save</button>
+          <button style={btnStyle} onClick={() => setEditingId(null)}>Cancel</button>
         </div>
       )}
     </div>
   );
 }
+
+/* STYLES */
+const inputStyle = {
+  padding: 6,
+  background: "#111",
+  color: "white",
+  border: "1px solid #2a2a2a",
+};
+
+const btnStyle = {
+  padding: "6px 10px",
+  background: "#111",
+  color: "white",
+  border: "1px solid #2a2a2a",
+  borderRadius: 4,
+  cursor: "pointer",
+  minWidth: 70,
+  textAlign: "center",
+};
+
+const th = { textAlign: "left", padding: 10, opacity: 0.7 };
+const td = {
+  padding: 10,
+  textAlign: "left",
+  verticalAlign: "middle",
+};
+const imgStyle = { width: 50, height: 50, objectFit: "cover", borderRadius: 6 };
+const editBox = {
+  marginTop: 20,
+  padding: 15,
+  background: "#111",
+  border: "1px solid #2a2a2a",
+};
