@@ -232,15 +232,7 @@ export default function InvoicesPage() {
 
       {/* HEADER */}
       <div style={{ marginTop: 12 }}>
-        <button
-          style={buttonStyle}
-          onClick={() => {
-            setEditingInvoice(null);
-            setModalOpen(true);
-          }}
-        >
-          + New Invoice
-        </button>
+   
 
         <div style={{ marginTop: 18, opacity: 0.6 }}>
           Invoices & billing management

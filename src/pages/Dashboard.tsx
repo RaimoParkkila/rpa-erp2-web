@@ -22,6 +22,10 @@ export default function Dashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [lines, setLines] = useState<InvoiceLine[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,7 +48,13 @@ export default function Dashboard() {
     setInvoices(invData || []);
     setCustomers(custData || []);
     setLines(lineData || []);
+    setLoading(false);
   }
+
+  // ---------------- FILTERED DATA ----------------
+  const filteredInvoices = statusFilter
+    ? invoices.filter((i) => i.status === statusFilter)
+    : invoices;
 
   const draft = invoices.filter(i => i.status === "DRAFT").length;
   const sent = invoices.filter(i => i.status === "SENT").length;
@@ -76,21 +86,21 @@ export default function Dashboard() {
     .sort((a, b) => Number(b[1]) - Number(a[1]))
     .slice(0, 3);
 
-  const card = (title: string, value: any, onClick?: () => void) => (
+  // ---------------- UI STYLE (same theme) ----------------
+  const card = (title: string, value: any, onClick?: () => void, active?: boolean) => (
     <div
       onClick={onClick}
       style={{
-        background: "#1e1e1e",
-        padding: "20px",
+        background: active ? "#262626" : "#1e1e1e",
+        padding: "18px",
         borderRadius: "10px",
-        border: "1px solid #333",
+        border: active ? "1px solid #4da3ff" : "1px solid #333",
         cursor: onClick ? "pointer" : "default",
+        transition: "0.15s",
       }}
     >
       <div style={{ fontSize: "12px", opacity: 0.7 }}>{title}</div>
-      <div style={{ fontSize: "24px", marginTop: "5px" }}>
-        {value}
-      </div>
+      <div style={{ fontSize: "24px", marginTop: "5px" }}>{value}</div>
     </div>
   );
 
@@ -133,9 +143,13 @@ export default function Dashboard() {
 
   const total = invoices.length;
 
+  if (loading) {
+    return <div style={{ color: "white" }}>Loading...</div>;
+  }
+
   return (
-    <div style={{ color: "white" }}>
-      <h1>ERP Dashboard</h1>
+    <div style={{ color: "white", padding: 20 }}>
+      ERP Dashboard
 
       {/* GRID */}
       <div
@@ -147,12 +161,23 @@ export default function Dashboard() {
         }}
       >
         {card("Total Invoices", total, () => navigate("/invoices"))}
-        {card("Draft", draft)}
-        {card("Sent", sent)}
-        {card("Paid", paid)}
+
+        {card("Draft", draft, () => setStatusFilter("DRAFT"), statusFilter === "DRAFT")}
+        {card("Sent", sent, () => setStatusFilter("SENT"), statusFilter === "SENT")}
+        {card("Paid", paid, () => setStatusFilter("PAID"), statusFilter === "PAID")}
+
         {card("Customers", customers.length)}
         {card("Revenue (€)", revenue.toFixed(2))}
       </div>
+
+      {/* RESET FILTER */}
+      {statusFilter && (
+        <div style={{ marginTop: 15 }}>
+          <button onClick={() => setStatusFilter(null)}>
+            Reset filter
+          </button>
+        </div>
+      )}
 
       {/* STATUS PREVIEW */}
       <div style={{ marginTop: "20px" }}>
@@ -178,6 +203,7 @@ export default function Dashboard() {
               background: "#1e1e1e",
               marginBottom: "8px",
               borderRadius: "6px",
+              border: "1px solid #333",
             }}
           >
             Customer #{customerId} — €{Number(amount).toFixed(2)}

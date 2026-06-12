@@ -20,7 +20,6 @@ export default function AdminPanel() {
     setLoading(true);
     setError(null);
 
-    // 🔥 fallback-safe query (ei kaadu vaikka email puuttuu view:stä)
     const { data, error } = await supabase
       .from("admin_users")
       .select("id, role, email");
@@ -53,6 +52,33 @@ export default function AdminPanel() {
     );
   }
 
+  // 🔥 shared styles
+  const buttonStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    borderRadius: 6,
+    border: "1px solid #333",
+    background: "#111",
+    color: "white",
+    cursor: "pointer",
+    minWidth: 120,
+    textAlign: "center",
+  };
+
+  const tableStyle: React.CSSProperties = {
+    width: "100%",
+    borderCollapse: "collapse",
+    marginTop: 20,
+    background: "#0f0f0f",
+    borderRadius: 10,
+    overflow: "hidden",
+  };
+
+  const thTd: React.CSSProperties = {
+    padding: 10,
+    fontSize: 13,
+    borderBottom: "1px solid #222",
+  };
+
   return (
     <div style={{ color: "white" }}>
       <h2>Admin Panel</h2>
@@ -66,37 +92,37 @@ export default function AdminPanel() {
       )}
 
       {!loading && users.length > 0 && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginTop: 20,
-          }}
-        >
+        <table style={tableStyle}>
           <thead>
-            <tr style={{ textAlign: "left" }}>
-              <th>Email / ID</th>
-              <th>Role</th>
-              <th>Actions</th>
+            <tr style={{ textAlign: "left", background: "#1a1a1a" }}>
+              <th style={thTd}>Email / ID</th>
+              <th style={thTd}>Role</th>
+              <th style={thTd}>Actions</th>
             </tr>
           </thead>
 
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td>
+                <td style={thTd}>
                   {u.email ?? u.id.slice(0, 8)}
                 </td>
 
-                <td>{u.role}</td>
+                <td style={thTd}>{u.role}</td>
 
-                <td>
+                <td style={thTd}>
                   {u.role !== "admin" ? (
-                    <button onClick={() => changeRole(u.id, "admin")}>
+                    <button
+                      style={buttonStyle}
+                      onClick={() => changeRole(u.id, "admin")}
+                    >
                       Make admin
                     </button>
                   ) : (
-                    <button onClick={() => changeRole(u.id, "user")}>
+                    <button
+                      style={buttonStyle}
+                      onClick={() => changeRole(u.id, "user")}
+                    >
                       Remove admin
                     </button>
                   )}

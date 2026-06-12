@@ -15,6 +15,20 @@ const emptyForm = {
   total: 0,
 };
 
+// ---------------- STATUS MAP ----------------
+const mapStatusReverse = (status: string) => {
+  switch (status) {
+    case "Pending":
+      return "DRAFT";
+    case "Paid":
+      return "PAID";
+    case "Overdue":
+      return "OVERDUE";
+    default:
+      return "DRAFT";
+  }
+};
+
 export default function InvoiceModal({
   isOpen,
   initialData,
@@ -24,7 +38,7 @@ export default function InvoiceModal({
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // ---------------- SYNC (FIXED) ----------------
+  // ---------------- SYNC ----------------
   useEffect(() => {
     if (!isOpen) return;
 
@@ -47,7 +61,7 @@ export default function InvoiceModal({
     }));
   };
 
-  // ---------------- SAVE (CLEAN PAYLOAD) ----------------
+  // ---------------- SAVE ----------------
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -55,7 +69,7 @@ export default function InvoiceModal({
         customer: form.customer,
         rpa_customer_id: Number(form.rpa_customer_id),
         date: form.date,
-        status: form.status,
+        status: mapStatusReverse(form.status), // 🔥 CRITICAL FIX
         total: Number(form.total),
       };
 
@@ -73,18 +87,20 @@ export default function InvoiceModal({
       <h3>Invoice</h3>
 
       {/* CUSTOMER */}
-      <input
-        value={form.customer}
-        onChange={(e) => handleChange("customer", e.target.value)}
-        placeholder="Customer name"
-      />
+      <div>
+        <label>Customer</label>
+        <div style={{ padding: 8, border: "1px solid #333", borderRadius: 6 }}>
+          {form.customer || "-"}
+        </div>
+      </div>
 
-      {/* CUSTOMER ID (hidden but safe) */}
-      <input
-        value={form.rpa_customer_id}
-        onChange={(e) => handleChange("rpa_customer_id", e.target.value)}
-        placeholder="Customer ID"
-      />
+      {/* CUSTOMER ID */}
+      <div>
+        <label>Customer ID</label>
+        <div style={{ padding: 8, border: "1px solid #333", borderRadius: 6 }}>
+          {form.rpa_customer_id || "-"}
+        </div>
+      </div>
 
       {/* DATE */}
       <input
@@ -103,7 +119,7 @@ export default function InvoiceModal({
         <option value="Overdue">Overdue</option>
       </select>
 
-      {/* TOTAL (readonly display) */}
+      {/* TOTAL */}
       <div style={{ marginTop: 10, opacity: 0.7 }}>
         Total: {form.total}
       </div>
