@@ -83,6 +83,24 @@ export default function Customers() {
     borderBottom: "1px solid #222",
   };
 
+  const actionButton: React.CSSProperties = {
+    width: "80px",
+    height: "32px",
+    border: "1px solid #444",
+    background: "#222",
+    color: "white",
+    cursor: "pointer",
+  };
+
+  const deleteButton: React.CSSProperties = {
+    ...actionButton,
+    color: "#ff6b6b",
+  };
+
+  const actionsCell: React.CSSProperties = {
+    display: "flex",
+    gap: "8px",
+  };
   return (
     <div style={{ color: "white" }}>
       {/* HEADER */}
@@ -197,27 +215,41 @@ export default function Customers() {
 
                   {/* ACTIONS */}
                   <td style={td}>
-                    {isEditing ? (
-                      <>
-                        <button onClick={() => saveEdit(c.id)}>
-                          Save
-                        </button>
-                        <button onClick={cancelEdit}>Cancel</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => startEdit(c)}>
-                          Edit
-                        </button>
+                    <div style={actionsCell}>
+                      {isEditing ? (
+                        <>
+                          <button
+                            style={actionButton}
+                            onClick={() => saveEdit(c.id)}
+                          >
+                            Save
+                          </button>
 
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          style={{ marginLeft: 8, color: "red" }}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
+                          <button
+                            style={actionButton}
+                            onClick={cancelEdit}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            style={actionButton}
+                            onClick={() => startEdit(c)}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            style={deleteButton}
+                            onClick={() => handleDelete(c.id)}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
