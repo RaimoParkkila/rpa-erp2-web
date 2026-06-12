@@ -323,21 +323,18 @@ export default function InvoicesPage() {
         initialData={
           editingInvoice
             ? {
-              id: editingInvoice.id,
               customer: editingInvoice.customer ?? "",
-              rpa_customer_id: editingInvoice.rpa_customer_id ?? null,
-              date: editingInvoice.date
-                ? editingInvoice.date.split("T")[0]
-                : "",
-              status: mapStatus(editingInvoice.status ?? "DRAFT"),
-              total: editingInvoice.total ?? 0,
-              subtotal: editingInvoice.subtotal ?? 0,
+              rpa_customer_id: editingInvoice.rpa_customer_id ?? "",
+              date: editingInvoice.date?.split("T")[0] ?? "",
+              status: mapStatus(editingInvoice.status),
+              total: editingInvoice.total ?? 0,   // 🔥 TÄMÄ PUUTTUI
             }
             : {
               customer: "",
-              rpa_customer_id: null,
+              rpa_customer_id: "",
               date: "",
               status: "Pending",
+              total: 0,
             }
         }
         onClose={() => {

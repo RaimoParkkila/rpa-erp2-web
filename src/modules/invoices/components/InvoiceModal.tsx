@@ -1,251 +1,98 @@
-import { useEffect, useState } from "react";
-import type { InvoiceForm } from "@modules/invoices/types/InvoiceTypes";
-import type { Customer } from "@modules/invoices/types/CustomerTypes";
-import { supabase } from "@services/supabase";
+import React, { useEffect, useState } from "react";
 
-interface Props {
+type Props = {
   isOpen: boolean;
+  initialData: any | null;
   onClose: () => void;
-  onSave: (data: InvoiceForm) => void;
-  initialData?: any | null;
-}
+  onSave: (data: any) => Promise<void> | void;
+};
 
 export default function InvoiceModal({
   isOpen,
+  initialData,
   onClose,
   onSave,
-  initialData,
 }: Props) {
-  const [visible, setVisible] = useState(false);
 
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [customerId, setCustomerId] = useState("");
-  const [date, setDate] = useState("");
-  const [status, setStatus] =
-    useState<"Paid" | "Pending" | "Overdue">("Pending");
+  const emptyForm = {
+    customer: "",
+    rpa_customer_id: "",
+    date: "",
+    status: "Pending",
+    total: 0,
+  };
 
-  const [total, setTotal] = useState(0);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
 
-  // ---------------- OPEN / CLOSE ----------------
+  // ✅ SYNC: props → state (FULL FIX)
   useEffect(() => {
-    if (isOpen) {
-      setVisible(true);
-      document.body.style.overflow = "hidden";
-    } else {
-      const t = setTimeout(() => setVisible(false), 180);
-      document.body.style.overflow = "";
-      return () => clearTimeout(t);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  // ---------------- ESC ----------------
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    if (isOpen) window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, onClose]);
-
-  // ---------------- CUSTOMERS ----------------
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data } = await supabase
-        .from("rpa_customer")
-        .select("id, firstname")
-        .order("id");
-
-      if (data) setCustomers(data);
-    };
-
-    fetchCustomers();
-  }, []);
-
-  // ---------------- INITIAL DATA SYNC (CLEAN) ----------------
-  useEffect(() => {
-    const computedTotal =
-      initialData?.total ??
-      initialData?.subtotal ??
-      initialData?.snapshot?.totals?.total ??
-      0;
-
-    alert(
-      `total: ${initialData?.total}\n` +
-      `subtotal: ${initialData?.subtotal}\n` +
-      `snapshotTotal: ${initialData?.snapshot?.totals?.total}\n` +
-      `computedTotal: ${computedTotal}`
-    );
-
-    setTotal(Number(computedTotal));
-  }, [initialData]);
-
-
-  if (!visible) return null;
-
-  const handleSave = () => {
-    onSave({
-      ...(initialData as any),
-      rpa_customer_id: Number(customerId),
-      date,
-      status,
+    setForm({
+      customer: initialData?.customer ?? "",
+      rpa_customer_id: initialData?.rpa_customer_id ?? "",
+      date: initialData?.date ?? "",
+      status: initialData?.status ?? "Pending",
+      total: initialData?.total ?? 0,
     });
 
-    onClose();
+  }, [initialData, isOpen]);
+
+  const handleChange = (key: string, value: any) => {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px",
-    borderRadius: 8,
-    border: "1px solid #333",
-    background: "#111",
-    color: "white",
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(form);
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: 12,
-    opacity: 0.7,
-    marginBottom: 6,
-  };
+  if (!isOpen) return null;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 20,
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 720,
-          background: "#0f0f0f",
-          border: "1px solid #222",
-          borderRadius: 12,
-          padding: 20,
-          color: "white",
-        }}
+    <div style={{ background: "#111", padding: 20, borderRadius: 10 }}>
+      <h3>Invoice</h3>
+
+      <input
+        value={form.customer}
+        onChange={(e) => handleChange("customer", e.target.value)}
+        placeholder="Customer"
+      />
+
+      <input
+        value={form.date}
+        onChange={(e) => handleChange("date", e.target.value)}
+        type="date"
+      />
+
+      <select
+        value={form.status}
+        onChange={(e) => handleChange("status", e.target.value)}
       >
-        {/* HEADER */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>
-            {initialData ? "Edit Invoice" : "New Invoice"}
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.6 }}>
-            Invoice management panel
-          </div>
-        </div>
+        <option value="Pending">Pending</option>
+        <option value="Paid">Paid</option>
+        <option value="Overdue">Overdue</option>
+      </select>
 
-        {/* GRID */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 15,
-          }}
-        >
-          {/* CUSTOMER */}
-          <div>
-            <div style={labelStyle}>Customer</div>
-            <select
-              style={inputStyle}
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-            >
-              <option value="">Select customer</option>
-              {customers.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  {c.firstname}
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* optional display only */}
+      <div style={{ marginTop: 10, opacity: 0.7 }}>
+        Total: {form.total}
+      </div>
 
-          {/* DATE */}
-          <div>
-            <div style={labelStyle}>Date</div>
-            <input
-              style={inputStyle}
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-
-          {/* STATUS */}
-          <div>
-            <div style={labelStyle}>Status</div>
-            <select
-              style={inputStyle}
-              value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
-            >
-              <option value="Paid">Paid</option>
-              <option value="Pending">Pending</option>
-              <option value="Overdue">Overdue</option>
-            </select>
-          </div>
-
-          {/* TOTAL */}
-          <div>
-            <div style={labelStyle}>Total</div>
-            <div
-              style={{
-                ...inputStyle,
-                display: "flex",
-                alignItems: "center",
-                fontWeight: "bold",
-              }}
-            >
-              {Number(total).toFixed(2)}
-            </div>
-          </div>
-        </div>
-
-        {/* ACTIONS */}
-        <div
-          style={{
-            marginTop: 20,
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 10,
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #333",
-              background: "#111",
-              color: "white",
-            }}
-          >
-            Cancel
-          </button>
-
-          <button
-            onClick={handleSave}
-            style={{
-              padding: "10px 14px",
-              borderRadius: 8,
-              border: "1px solid #444",
-              background: "#1f1f1f",
-              color: "white",
-              fontWeight: 600,
-            }}
-          >
-            Save Invoice
-          </button>
-        </div>
+      <div style={{ marginTop: 10 }}>
+        <button onClick={onClose}>Cancel</button>
+        <button onClick={handleSave} disabled={saving}>
+          Save
+        </button>
       </div>
     </div>
   );
