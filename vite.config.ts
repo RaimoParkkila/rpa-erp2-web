@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
+  base: "./", // 🔥 TÄRKEIN FIX VERCELIIN
+
   plugins: [react()],
 
   resolve: {
@@ -17,14 +19,13 @@ export default defineConfig({
     }
   },
 
-  // IMPORTANT: only for local dev (NOT Vercel build)
+  // only local dev
   server: {
     proxy: {
       "/api": "http://localhost:3000"
     }
   },
 
-  // 🔥 FIX: prevents lightningcss/minify crash on Vercel
   build: {
     cssMinify: false
   }
