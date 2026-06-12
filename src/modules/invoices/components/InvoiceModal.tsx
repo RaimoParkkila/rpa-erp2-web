@@ -7,7 +7,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: InvoiceForm) => void;
-  initialData?: InvoiceForm | null;
+  initialData?: any | null;
 }
 
 export default function InvoiceModal({
@@ -24,58 +24,7 @@ export default function InvoiceModal({
   const [status, setStatus] =
     useState<"Paid" | "Pending" | "Overdue">("Pending");
 
-  const [total, setTotal] = useState<number>(0);
-
-  // ---------------- DEBUG ----------------
-  useEffect(() => {
-    console.log("INVOICE MODAL initialData:", initialData);
-  }, [initialData]);
-
-  // ---------------- FETCH CUSTOMERS ----------------
-  useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data, error } = await supabase
-        .from("rpa_customer")
-        .select("id, firstname")
-        .order("id");
-
-      if (!error && data) setCustomers(data);
-      else console.error(error);
-    };
-
-    fetchCustomers();
-  }, []);
-
-  // ---------------- SYNC INITIAL DATA ----------------
-  useEffect(() => {
-    if (!initialData) {
-      setCustomerId("");
-      setDate("");
-      setStatus("Pending");
-      setTotal(0);
-      return;
-    }
-
-    setCustomerId(
-      initialData.rpa_customer_id ? String(initialData.rpa_customer_id) : ""
-    );
-
-    // 🔥 FIX: date fallback (Supabase timestamp vs date-only)
-    const safeDate = initialData.date
-      ? String(initialData.date).substring(0, 10)
-      : "";
-
-    setDate(safeDate);
-
-    setStatus(initialData.status ?? "Pending");
-
-    // 🔥 FIX: DO NOT overwrite real totals with undefined/null
-    setTotal(
-      (initialData as any).total ??
-      (initialData as any).subtotal ??
-      0
-    );
-  }, [initialData]);
+  const [total, setTotal] = useState(0);
 
   // ---------------- OPEN / CLOSE ----------------
   useEffect(() => {
@@ -99,80 +48,203 @@ export default function InvoiceModal({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
+  // ---------------- CUSTOMERS ----------------
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data } = await supabase
+        .from("rpa_customer")
+        .select("id, firstname")
+        .order("id");
+
+      if (data) setCustomers(data);
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // ---------------- INITIAL DATA SYNC (CLEAN) ----------------
+  useEffect(() => {
+    const computedTotal =
+      initialData?.total ??
+      initialData?.subtotal ??
+      initialData?.snapshot?.totals?.total ??
+      0;
+
+    alert(
+      `total: ${initialData?.total}\n` +
+      `subtotal: ${initialData?.subtotal}\n` +
+      `snapshotTotal: ${initialData?.snapshot?.totals?.total}\n` +
+      `computedTotal: ${computedTotal}`
+    );
+
+    setTotal(Number(computedTotal));
+  }, [initialData]);
+
+
   if (!visible) return null;
 
-  // ---------------- SAVE ----------------
   const handleSave = () => {
-    const fullInvoice = {
+    onSave({
       ...(initialData as any),
       rpa_customer_id: Number(customerId),
       date,
       status,
-    };
+    });
 
-    onSave(fullInvoice);
     onClose();
   };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px",
+    borderRadius: 8,
+    border: "1px solid #333",
+    background: "#111",
+    color: "white",
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    opacity: 0.7,
+    marginBottom: 6,
+  };
+
   return (
     <div
       onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.55)",
+        background: "rgba(0,0,0,0.6)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
+        padding: 20,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 360,
-          background: "white",
+          width: "100%",
+          maxWidth: 720,
+          background: "#0f0f0f",
+          border: "1px solid #222",
+          borderRadius: 12,
           padding: 20,
-          borderRadius: 10,
+          color: "white",
         }}
       >
-        {initialData ? "Edit Invoice" : "Add Invoice"}
-
-        {/* DEBUG */}
-        <pre style={{ fontSize: 11, background: "#111", color: "#0f0", padding: 10 }}>
-          {JSON.stringify({ customerId, date, status, total, initialData }, null, 2)}
-        </pre>
-
-        {/* CUSTOMER */}
-        <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-          <option value="">Select customer</option>
-          {customers.map((c) => (
-            <option key={c.id} value={String(c.id)}>
-              {c.firstname}
-            </option>
-          ))}
-        </select>
-
-        <br />
-
-        {/* DATE */}
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-
-        <br />
-
-        {/* STATUS */}
-        <select value={status} onChange={(e) => setStatus(e.target.value as any)}>
-          <option value="Paid">Paid</option>
-          <option value="Pending">Pending</option>
-          <option value="Overdue">Overdue</option>
-        </select>
-
-        {/* TOTAL (READ ONLY DEBUG) */}
-        <div style={{ marginTop: 10 }}>
-          Total: <b>{total}</b>
+        {/* HEADER */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>
+            {initialData ? "Edit Invoice" : "New Invoice"}
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.6 }}>
+            Invoice management panel
+          </div>
         </div>
 
-        <div style={{ marginTop: 15, display: "flex", gap: 10 }}>
-          <button onClick={handleSave}>Save</button>
-          <button onClick={onClose}>Cancel</button>
+        {/* GRID */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 15,
+          }}
+        >
+          {/* CUSTOMER */}
+          <div>
+            <div style={labelStyle}>Customer</div>
+            <select
+              style={inputStyle}
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+            >
+              <option value="">Select customer</option>
+              {customers.map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.firstname}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* DATE */}
+          <div>
+            <div style={labelStyle}>Date</div>
+            <input
+              style={inputStyle}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+
+          {/* STATUS */}
+          <div>
+            <div style={labelStyle}>Status</div>
+            <select
+              style={inputStyle}
+              value={status}
+              onChange={(e) => setStatus(e.target.value as any)}
+            >
+              <option value="Paid">Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+
+          {/* TOTAL */}
+          <div>
+            <div style={labelStyle}>Total</div>
+            <div
+              style={{
+                ...inputStyle,
+                display: "flex",
+                alignItems: "center",
+                fontWeight: "bold",
+              }}
+            >
+              {Number(total).toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div
+          style={{
+            marginTop: 20,
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #333",
+              background: "#111",
+              color: "white",
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSave}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1px solid #444",
+              background: "#1f1f1f",
+              color: "white",
+              fontWeight: 600,
+            }}
+          >
+            Save Invoice
+          </button>
         </div>
       </div>
     </div>

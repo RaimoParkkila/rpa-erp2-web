@@ -55,6 +55,8 @@ export default function InvoiceDetail() {
   // ---------------- LINES ----------------
   const { lines, reload: reloadLines } = useInvoiceLines(invoiceId);
 
+  const safeLines: InvoiceLine[] = Array.isArray(lines) ? lines : [];
+
   // ---------------- HEADER ----------------
   const reloadHeader = async () => {
     if (!invoiceId) return;
@@ -64,6 +66,9 @@ export default function InvoiceDetail() {
 
     try {
       const res = await InvoiceDetailService.getById(invoiceId);
+
+      console.log("INVOICE HEADER RAW:", res);
+
       if (!res) throw new Error("Invoice not found");
 
       setInvoice(res);
@@ -105,6 +110,8 @@ export default function InvoiceDetail() {
 
   // ---------------- EDIT ----------------
   const openEdit = (l: InvoiceLine) => {
+    console.log("EDIT CLICK:", l);
+
     setEditingLine({
       id: l.id,
       productname: l.productname_snapshot,
@@ -149,26 +156,38 @@ export default function InvoiceDetail() {
     }
   };
 
-  // ---------------- CALC ----------------
+  // ---------------- SAFE CALC ----------------
   const calcTotal = (l: InvoiceLine) => {
-    const amount = Number(l.amount_snapshot) || 0;
-    const price = Number(l.price_snapshot) || 0;
-
+    const amount = Number(l.amount_snapshot ?? 0);
+    const price = Number(l.price_snapshot ?? 0);
     return amount * price;
   };
 
-  const subtotal = (lines || []).reduce(
-    (s, l) => s + calcTotal(l),
-    0
-  );
+  // ---------------- TOTALS (FIXED PIPELINE) ----------------
+  const subtotal = safeLines.reduce((sum, l) => {
+    const lineTotal = calcTotal(l);
+
+    if (isNaN(lineTotal)) {
+      console.warn("BAD LINE:", l);
+      return sum;
+    }
+
+    return sum + lineTotal;
+  }, 0);
+
   const vat = subtotal * 0.21;
   const total = subtotal + vat;
+
+  console.log("LINES:", safeLines);
+  console.log("SUBTOTAL:", subtotal);
+  console.log("VAT:", vat);
+  console.log("TOTAL:", total);
 
   const isDraft = isInvoiceEditable(invoice?.status);
 
   // ---------------- PDF ----------------
   const handleExportPdf = async () => {
-    if (!pdfRef?.current || !invoice?.id || !ready || exporting) return;
+    if (!pdfRef.current || !invoice?.id || !ready || exporting) return;
 
     setExporting(true);
     setError("");
@@ -182,10 +201,7 @@ export default function InvoiceDetail() {
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
 
-      const width = 210;
-      const height = 297;
-
-      pdf.addImage(imgData, "PNG", 0, 0, width, height);
+      pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
       pdf.save(`invoice-${invoice.id}.pdf`);
     } catch (err: any) {
       console.error(err);
@@ -196,192 +212,62 @@ export default function InvoiceDetail() {
   };
 
   // ---------------- UI ----------------
-  if (loading)
-    return (
-      <div style={{ padding: "20px", fontSize: "14px" }}>
-        Loading invoice...
-      </div>
-    );
-  if (!invoice)
-    return (
-      <div style={{ padding: "20px", color: "red" }}>
-        Invoice not found or deleted
-      </div>
-    );
+  if (loading) return <div style={{ padding: 20 }}>Loading invoice...</div>;
+  if (!invoice) return <div style={{ padding: 20, color: "red" }}>Invoice not found</div>;
+
+  console.log("DEBUG INVOICE:", invoice);
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px 16px",
-          border: "1px solid #ddd",
-          borderRadius: "8px",
-          marginBottom: "16px",
-          background: "#fafafa",
-        }}
-      >
-        {/* LEFT SIDE */}
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: "18px", fontWeight: 600 }}>
-            Invoice #{invoice.id}
-          </div>
-
-          <div style={{ fontSize: "12px", color: "#666" }}>
-            Date: {invoice.date}
-          </div>
+          Invoice #{invoice.id}
+          <div style={{ fontSize: 12 }}>Date: {invoice.date}</div>
         </div>
 
-        {/* RIGHT SIDE */}
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "16px", fontWeight: 600 }}>
-            Total: €{total.toFixed(2)}
-          </div>
+        <div>
+          <div>Total: €{total.toFixed(2)}</div>
 
-          <button
-            onClick={handleExportPdf}
-            disabled={!ready || exporting}
-            style={{
-              marginTop: "6px",
-              padding: "6px 12px",
-              cursor: !ready || exporting ? "not-allowed" : "pointer",
-              opacity: !ready || exporting ? 0.5 : 1,
-            }}
-          >
-            {exporting ? "Exporting PDF..." : "Export PDF"}
+          <button onClick={handleExportPdf} disabled={!ready || exporting}>
+            Export PDF
           </button>
         </div>
       </div>
 
-      {error && (
-        <div
-          style={{
-            background: "#ffe5e5",
-            border: "1px solid #ffb3b3",
-            padding: "10px",
-            margin: "10px 0",
-            borderRadius: "6px",
-            color: "#900",
-            fontSize: "13px",
-          }}
-        >
-          ⚠ {error}
-        </div>
-      )}
+      {error && <div style={{ color: "red" }}>{error}</div>}
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          fontSize: "13px",
-        }}
-      >
+      <table style={{ width: "100%" }}>
         <thead>
           <tr>
-            <th style={{ textAlign: "left", padding: "8px 6px" }}>
-              Product
-            </th>
-
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>
-              Amount
-            </th>
-
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>
-              Price
-            </th>
-
-            <th style={{ textAlign: "right", padding: "8px 6px" }}>
-              Total
-            </th>
-
-            <th style={{ textAlign: "center", padding: "8px 6px" }}>
-              Actions
-            </th>
+            <th>Product</th>
+            <th>Amount</th>
+            <th>Price</th>
+            <th>Total</th>
+            <th>Actions</th>
           </tr>
         </thead>
 
         <tbody>
-          {(lines || []).length === 0 ? (
-            <tr>
-              <td
-                colSpan={5}
-                style={{
-                  textAlign: "center",
-                  padding: "20px",
-                  color: "#777",
-                }}
-              >
-                No invoice lines yet
+          {safeLines.map((l) => (
+            <tr key={l.id}>
+              <td>{l.productname_snapshot}</td>
+              <td>{l.amount_snapshot}</td>
+              <td>{Number(l.price_snapshot).toFixed(2)}</td>
+              <td>{calcTotal(l).toFixed(2)}</td>
+              <td>
+                <button onClick={() => openEdit(l)}>Edit</button>
+                <button onClick={() => handleDeleteLine(l.id)}>Delete</button>
               </td>
             </tr>
-          ) : (
-            (lines || []).map((l) => (
-              <tr
-                key={l.id}
-                style={{
-                  transition: "background 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#f5f7fa";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <td style={{ textAlign: "left", padding: "6px 6px" }}>
-                  {l.productname_snapshot}
-                </td>
-
-                <td style={{ textAlign: "right", padding: "6px 6px" }}>
-                  {l.amount_snapshot}
-                </td>
-
-                <td style={{ textAlign: "right", padding: "6px 6px" }}>
-                  {Number(l.price_snapshot).toFixed(2)}
-                </td>
-
-                <td style={{ textAlign: "right", padding: "6px 6px" }}>
-                  {calcTotal(l).toFixed(2)}
-                </td>
-
-                <td style={{ textAlign: "center", padding: "6px 6px" }}>
-                  <button
-                    onClick={() => openEdit(l)}
-                    style={{
-                      marginRight: "6px",
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const ok = window.confirm(
-                        "Delete this invoice line?"
-                      );
-
-                      if (ok) {
-                        handleDeleteLine(l.id);
-                      }
-                    }}
-                    style={{
-                      padding: "4px 8px",
-                      cursor: "pointer",
-                      color: "#b00020",
-                    }}
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
+          ))}
         </tbody>
       </table>
+
+      <div style={{ position: "absolute", left: "-9999px" }}>
+        <div ref={pdfRef}>
+          <InvoicePdfTemplate data={invoice} lines={safeLines} />
+        </div>
+      </div>
 
       {isDraft && (
         <AddInvoiceLine
@@ -400,12 +286,6 @@ export default function InvoiceDetail() {
           onCancel={() => setEditingLine(null)}
         />
       )}
-
-      <div style={{ position: "absolute", left: "-9999px" }}>
-        <div ref={pdfRef}>
-          <InvoicePdfTemplate data={invoice} lines={lines} />
-        </div>
-      </div>
     </>
   );
 }
