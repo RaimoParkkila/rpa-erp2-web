@@ -112,10 +112,18 @@ export const InvoiceService = {
   // ---------------- UPDATE ----------------
   async update(id: number, invoice: any) {
     try {
+
+      const invoiceId = Number(id);
+
+      if (!Number.isFinite(invoiceId)) {
+        console.error("❌ INVALID INVOICE ID:", id);
+        return null;
+      }
+
       const { data: lines, error: lineError } = await supabase
         .from("rpa_invoice_line")
         .select("*")
-        .eq("rpa_headerofinvoice_id", Number(id));
+        .eq("rpa_headerofinvoice_id", invoiceId);
 
       if (lineError) {
         console.error("LINE FETCH ERROR:", lineError);

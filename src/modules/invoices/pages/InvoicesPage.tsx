@@ -13,8 +13,39 @@ export default function InvoicesPage() {
 
   const getParam = (key: string, fallback: string) =>
     searchParams.get(key) || fallback;
-
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  useEffect(() => {
+    setLoading(true);
+
+    InvoiceService.getAll()
+      .then((data) => setInvoices(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
+  }, []);
+  /*
+    const [invoices, setInvoices] = useState<Invoice[]>([
+      {
+        id: 1,
+        rpa_customer_id: 5,
+        customer: "Pedro",
+        date: "2026-06-11T16:14:21.444727",
+        status: "Pending", // 🔥 FIX: DRAFT → Pending
+        subtotal: 100,
+        tax: 24,
+        total: 124,
+      },
+      {
+        id: 2,
+        rpa_customer_id: 4,
+        customer: "Lucia",
+        date: "2026-06-12T06:33:01.702487",
+        status: "Paid", // 🔥 FIX: PAID → Paid
+        subtotal: 200,
+        tax: 48,
+        total: 248,
+      },
+    ]);
+  
+    */
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState(getParam("search", ""));
@@ -69,9 +100,32 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     setLoading(true);
-    InvoiceService.getAll()
-      .then((data) => setInvoices(Array.isArray(data) ? data : []))
-      .finally(() => setLoading(false));
+
+    // 🔥 HARD CODE TEST MODE
+    const mockInvoices: Invoice[] = [
+      {
+        id: 1,
+        rpa_customer_id: 5,
+        customer: "Pedro",
+        date: "2026-06-11T16:14:21.444727",
+        status: "Pending", // ✅ literal type
+        subtotal: 100,
+        tax: 24,
+        total: 124,
+      },
+      {
+        id: 2,
+        rpa_customer_id: 4,
+        customer: "Lucia",
+        date: "2025-06-12T06:33:01.702487",
+        status: "Paid", // ✅ literal type
+        subtotal: 200,
+        tax: 48,
+        total: 248,
+      },
+    ];
+    setInvoices(mockInvoices);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -94,17 +148,23 @@ export default function InvoicesPage() {
     await InvoiceService.remove(id);
   };
 
-  const handleEdit = async (invoice: Invoice) => {
+  const handleEdit = (invoice: Invoice) => {
     console.log("🟡 EDIT CLICK:", invoice);
 
-    alert(
-      `EDIT INVOICE\nID: ${invoice.id}\nSTATUS: ${invoice.status}\nTOTAL: ${invoice.total}`
-    );
+    const prepared = {
+      id: invoice.id,
+      customer: invoice.customer ?? "",
+      rpa_customer_id: invoice.rpa_customer_id ?? "",
+      date: invoice.date?.split("T")[0] ?? "",
+      status: mapStatus(invoice.status), // 🔥 TÄRKEIN KOHTA
+      total: invoice.total ?? 0,
+    };
 
-    setEditingInvoice(invoice);
+    console.log("🟢 EDIT FRESH DATA:", prepared);
+
+    setEditingInvoice(prepared); // 🔥 aina UI-muoto
     setModalOpen(true);
   };
-
   const handleSortChange = (key: keyof Invoice, asc: boolean) => {
     setSortKey(key);
     setSortAsc(asc);
@@ -342,26 +402,25 @@ export default function InvoicesPage() {
           setEditingInvoice(null);
         }}
         onSave={async (data) => {
-          if (editingInvoice) {
-            await InvoiceService.update(editingInvoice.id, {
-              status: mapStatusReverse(data.status ?? "Pending"),
-              date: data.date,
-              rpa_customer_id: Number(data.rpa_customer_id),
-            });
+          const normalizeDate = (d: string) => {
+            if (!d) return "";
+            // jos tulee YYYY-MM-DD → muutetaan ISO-muotoon
+            return new Date(d).toISOString();
+          };
 
-            await reloadInvoices();
-          } else {
-            const created = await InvoiceService.create({
-              status: mapStatusReverse(data.status ?? "Pending"),
-              date: data.date,
-              rpa_customer_id: Number(data.rpa_customer_id),
-            });
+          const updated = {
+            ...editingInvoice,
+            customer: data.customer,
+            date: normalizeDate(data.date), // 🔥 FIX: yhtenäinen formaatti
+            status: data.status,
+            rpa_customer_id: Number(data.rpa_customer_id),
+          };
 
-            if (created) {
-              await reloadInvoices();
-              navigate(`/invoices/${created.id}`);
-            }
-          }
+          setInvoices((prev) =>
+            prev.map((inv) =>
+              inv.id === editingInvoice.id ? updated : inv
+            )
+          );
 
           setModalOpen(false);
           setEditingInvoice(null);
