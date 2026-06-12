@@ -4,6 +4,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react()],
+
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -16,10 +17,15 @@ export default defineConfig({
     }
   },
 
-  // vite.config.ts
+  // IMPORTANT: only for local dev (NOT Vercel build)
   server: {
     proxy: {
-      "/api": "http://localhost:3000",
-    },
+      "/api": "http://localhost:3000"
+    }
+  },
+
+  // 🔥 FIX: prevents lightningcss/minify crash on Vercel
+  build: {
+    cssMinify: false
   }
 });
